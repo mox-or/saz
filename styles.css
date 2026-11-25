@@ -40,6 +40,9 @@ body {
   background-color: var(--bg);
   -webkit-font-smoothing: antialiased;
   overflow-x: clip;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 main {
@@ -345,6 +348,8 @@ code {
   color: var(--text);
   font-family: inherit;
   font-size: 0.84rem;
+  user-select: text;
+  -webkit-user-select: text;
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 

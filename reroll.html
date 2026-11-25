@@ -1,0 +1,2536 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trait &amp; Curse Reroll Simulator — Anime Crusaders</title>
+  <meta name="theme-color" content="#0f0f0f" />
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .rarity-Rare {
+      color: #8ab4f8;
+    }
+
+    .rarity-Epic {
+      color: #c482ff;
+    }
+
+    .rarity-Legendary {
+      color: #ffd25a;
+    }
+
+    .rarity-Mythic {
+      color: #ff6ea8;
+    }
+
+    .rarity-Hero {
+      color: #ff9c47;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.2s ease;
+    }
+
+    /* In-game RerollKit / TraitRerollUI / CurseRerollUI VFX */
+    .fx-stage {
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+      transition: border-color 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+    }
+
+    .fx-stage.hero-aura {
+      border-color: rgba(255, 178, 70, 0.72);
+      animation: heroOutlinePulse 1.8s ease-in-out infinite;
+    }
+
+    .fx-stage.curse-stage {
+      border-color: rgba(215, 60, 145, 0.35);
+    }
+
+    .fx-stage.fx-rolling {
+      border-color: rgba(255, 255, 255, 0.35);
+      box-shadow: 0 0 22px rgba(255, 255, 255, 0.08) inset;
+    }
+
+    .fx-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 15;
+      border-radius: inherit;
+    }
+
+    .fx-content {
+      position: relative;
+      z-index: 5;
+    }
+
+    .fx-flash {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      opacity: 0;
+      animation: fxFlash 0.44s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    .fx-sweep {
+      position: absolute;
+      top: -35%;
+      bottom: -35%;
+      left: -45%;
+      width: 42%;
+      transform: skewX(-22deg);
+      opacity: 0;
+      filter: blur(2px);
+      animation: fxSweep 0.62s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .fx-ring {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 24px;
+      height: 24px;
+      border-radius: 9999px;
+      border: 3px solid var(--fx-color, #ffffff);
+      box-shadow: 0 0 18px var(--fx-color, #ffffff), inset 0 0 12px var(--fx-color, #ffffff);
+      transform: translate(-50%, -50%) scale(0.3);
+      opacity: 0.95;
+      animation: fxRing var(--fx-dur, 0.58s) cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .fx-shockwave {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 36px;
+      height: 36px;
+      border-radius: 9999px;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.65) 0%, var(--fx-color, #ffd25a) 40%, transparent 72%);
+      transform: translate(-50%, -50%) scale(0.2);
+      animation: fxShockwave 0.48s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .fx-spark {
+      position: absolute;
+      left: var(--sx, 50%);
+      top: var(--sy, 50%);
+      width: var(--sz, 9px);
+      height: calc(var(--sz, 9px) * 0.48);
+      border-radius: 9999px;
+      background: var(--fx-color, #ffffff);
+      box-shadow: 0 0 8px var(--fx-color, #ffffff);
+      transform: translate(-50%, -50%) rotate(var(--rot, 0deg));
+      animation: fxSpark var(--fx-dur, 0.48s) cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .fx-ember {
+      position: absolute;
+      left: var(--sx, 50%);
+      bottom: 6%;
+      width: var(--sz, 5px);
+      height: var(--sz, 5px);
+      border-radius: 9999px;
+      background: var(--fx-color, #ff6ea8);
+      box-shadow: 0 0 10px var(--fx-color, #ff6ea8);
+      opacity: 0;
+      animation: fxEmber var(--fx-dur, 0.78s) cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    .fx-mote {
+      position: absolute;
+      left: var(--sx, 50%);
+      top: var(--sy, 72%);
+      width: var(--sz, 4px);
+      height: var(--sz, 4px);
+      border-radius: 9999px;
+      background: var(--fx-color, #8ab4f8);
+      box-shadow: 0 0 8px var(--fx-color, #8ab4f8);
+      opacity: 0;
+      animation: fxMote var(--fx-dur, 1.4s) ease-out forwards;
+    }
+
+    .fx-confetti {
+      position: absolute;
+      left: var(--sx, 50%);
+      top: -12%;
+      width: var(--cw, 7px);
+      height: var(--ch, 11px);
+      border-radius: 2px;
+      background: var(--fx-color, #ffd25a);
+      opacity: 0.95;
+      animation: fxConfetti var(--fx-dur, 1.15s) cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    }
+
+    .fx-stamp {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      z-index: 18;
+      pointer-events: none;
+      padding: 2px 9px;
+      border-radius: 9999px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      color: #0b0d12;
+      background: var(--fx-color, #ffd25a);
+      box-shadow: 0 0 16px var(--fx-color, #ffd25a);
+      animation: fxStamp 0.42s cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
+    }
+
+    .fx-pop {
+      animation: fxPop 0.36s cubic-bezier(0.2, 1.35, 0.45, 1);
+    }
+
+    .fx-tick-pop {
+      animation: fxTickPop 0.11s ease-out;
+    }
+
+    .fx-shake {
+      animation: fxShake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+    }
+
+    @keyframes heroOutlinePulse {
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 1px rgba(255, 168, 56, 0.45), 0 0 16px rgba(255, 140, 40, 0.16);
+      }
+
+      50% {
+        box-shadow: 0 0 0 2px rgba(255, 206, 95, 0.78), 0 0 28px rgba(255, 156, 65, 0.3);
+      }
+    }
+
+    @keyframes fxFlash {
+      0% {
+        opacity: 0.52;
+      }
+
+      100% {
+        opacity: 0;
+      }
+    }
+
+    @keyframes fxSweep {
+      0% {
+        left: -48%;
+        opacity: 0;
+      }
+
+      20% {
+        opacity: 0.55;
+      }
+
+      100% {
+        left: 125%;
+        opacity: 0;
+      }
+    }
+
+    @keyframes fxRing {
+      0% {
+        transform: translate(-50%, -50%) scale(0.35);
+        opacity: 0.95;
+      }
+
+      100% {
+        transform: translate(-50%, -50%) scale(11.5);
+        opacity: 0;
+      }
+    }
+
+    @keyframes fxShockwave {
+      0% {
+        transform: translate(-50%, -50%) scale(0.2);
+        opacity: 0.9;
+      }
+
+      100% {
+        transform: translate(-50%, -50%) scale(10.5);
+        opacity: 0;
+      }
+    }
+
+    @keyframes fxSpark {
+      0% {
+        transform: translate(-50%, -50%) rotate(var(--rot, 0deg)) scale(1.1);
+        opacity: 1;
+      }
+
+      100% {
+        transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, 0px))) rotate(var(--rot, 0deg)) scale(0.15);
+        opacity: 0;
+      }
+    }
+
+    @keyframes fxEmber {
+      0% {
+        transform: translate(0, 0) scale(0.7);
+        opacity: 0;
+      }
+
+      18% {
+        opacity: 0.95;
+      }
+
+      100% {
+        transform: translate(var(--dx, 0px), -145px) scale(0.1);
+        opacity: 0;
+      }
+    }
+
+    @keyframes fxMote {
+      0% {
+        transform: translate(0, 8px) scale(0.6);
+        opacity: 0;
+      }
+
+      25% {
+        opacity: 0.75;
+      }
+
+      100% {
+        transform: translate(var(--dx, 10px), -48px) scale(0.15);
+        opacity: 0;
+      }
+    }
+
+    @keyframes fxConfetti {
+      0% {
+        transform: translate(0, 0) rotate(0deg);
+        opacity: 1;
+      }
+
+      100% {
+        transform: translate(var(--dx, 0px), 230px) rotate(var(--rot, 360deg));
+        opacity: 0;
+      }
+    }
+
+    @keyframes fxStamp {
+      0% {
+        transform: scale(2.6) rotate(-7deg);
+        opacity: 0;
+      }
+
+      70% {
+        transform: scale(0.95) rotate(-1.5deg);
+        opacity: 1;
+      }
+
+      100% {
+        transform: scale(1) rotate(-1.5deg);
+        opacity: 1;
+      }
+    }
+
+    @keyframes fxPop {
+      0% {
+        transform: scale(0.86);
+      }
+
+      55% {
+        transform: scale(1.07);
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    @keyframes fxTickPop {
+      0% {
+        transform: scale(0.95);
+        opacity: 0.7;
+      }
+
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes fxShake {
+
+      0%,
+      100% {
+        transform: translate(0, 0);
+      }
+
+      12% {
+        transform: translate(var(--shk, -6px), -2px);
+      }
+
+      25% {
+        transform: translate(calc(var(--shk, -6px) * -1), 2px);
+      }
+
+      38% {
+        transform: translate(calc(var(--shk, -6px) * 0.72), 2px);
+      }
+
+      52% {
+        transform: translate(calc(var(--shk, -6px) * -0.72), -2px);
+      }
+
+      68% {
+        transform: translate(calc(var(--shk, -6px) * 0.38), 1px);
+      }
+
+      84% {
+        transform: translate(calc(var(--shk, -6px) * -0.38), -1px);
+      }
+    }
+
+    /* Card left-wash gradient & crest icon (TraitRerollUI Card.Wash) */
+    .trait-wash {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 2;
+      opacity: 0;
+      border-radius: inherit;
+      transition: opacity 0.25s ease;
+    }
+
+    .trait-crest {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: rgba(255, 255, 255, 0.05);
+      box-shadow: 0 0 18px var(--crest-glow, rgba(138, 180, 248, 0.22));
+      transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+
+    .curse-card-stage {
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+    }
+
+    .fx-jackpot-banner {
+      position: absolute;
+      inset: 0;
+      z-index: 28;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      pointer-events: none;
+      padding: 12px;
+    }
+
+    .fx-jackpot-title {
+      font-weight: 900;
+      font-size: clamp(24px, 5vw, 38px);
+      letter-spacing: 0.04em;
+      line-height: 1.05;
+      background: linear-gradient(135deg, #fff6c2 0%, #ffd25a 48%, #ff9c47 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      filter: drop-shadow(0 2px 14px rgba(255, 200, 65, 0.7));
+      transform: rotate(-6deg);
+      animation: fxStamp 0.42s cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
+    }
+
+    .fx-jackpot-sub {
+      margin-top: 6px;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      background: rgba(12, 14, 22, 0.82);
+      border: 1px solid rgba(255, 210, 90, 0.65);
+      transform: rotate(-3deg);
+      animation: fxStamp 0.44s 0.12s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+    }
+
+    /* Fullscreen HeroTraitReveal / TraitRerollUI._play_roll_reveal Cutscene */
+    .reveal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      overflow: hidden;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .reveal-overlay.is-open {
+      display: flex;
+    }
+
+    .reveal-dim {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, var(--rev-dim-core, rgba(20, 14, 30, 0.72)) 0%, rgba(4, 5, 10, 0.92) 78%);
+      opacity: 0;
+      transition: opacity 0.28s ease;
+    }
+
+    .reveal-overlay.is-visible .reveal-dim {
+      opacity: 1;
+    }
+
+    .reveal-flash {
+      position: absolute;
+      inset: 0;
+      background: #fffaf0;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 40;
+    }
+
+    .reveal-flash.is-active {
+      animation: revFlash 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .reveal-core {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: min(76vw, 460px);
+      height: min(76vw, 460px);
+      border-radius: 9999px;
+      transform: translate(-50%, -50%) scale(0.08);
+      background: radial-gradient(circle, #ffffff 0%, var(--rev-a, #ffd25a) 32%, transparent 72%);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .reveal-overlay.is-bursting .reveal-core {
+      animation: revCore 1.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .reveal-rays {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: min(115vmin, 760px);
+      height: min(115vmin, 760px);
+      transform: translate(-50%, -50%) scale(0.2);
+      border-radius: 9999px;
+      background: repeating-conic-gradient(from 0deg, var(--rev-a, #ffd25a) 0deg 8deg, transparent 8deg 24deg);
+      -webkit-mask-image: radial-gradient(circle, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.45) 45%, transparent 72%);
+      mask-image: radial-gradient(circle, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.45) 45%, transparent 72%);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 4;
+    }
+
+    .reveal-rays-2 {
+      width: min(130vmin, 880px);
+      height: min(130vmin, 880px);
+      background: repeating-conic-gradient(from 12deg, #fff5d2 0deg 5deg, transparent 5deg 22deg);
+      z-index: 4;
+    }
+
+    .reveal-overlay.is-bursting .reveal-rays {
+      animation: revRaysSpin 6s linear infinite, revRaysPop 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .reveal-overlay.is-bursting .reveal-rays-2 {
+      animation: revRaysSpinRev 8s linear infinite, revRaysPop2 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .reveal-ring {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 60px;
+      height: 60px;
+      border-radius: 9999px;
+      border: 6px solid var(--rev-a, #ffd25a);
+      box-shadow: 0 0 32px var(--rev-a, #ffd25a);
+      transform: translate(-50%, -50%) scale(0.1);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 8;
+    }
+
+    .reveal-overlay.is-bursting .reveal-ring {
+      animation: revRingExpand 0.72s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .reveal-sparks {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9;
+    }
+
+    .reveal-card-wrap {
+      position: relative;
+      z-index: 15;
+      width: min(92vw, 440px);
+      transition: transform 0.68s cubic-bezier(0.45, 0, 0.85, 0.4), opacity 0.55s ease;
+    }
+
+    .reveal-card {
+      position: relative;
+      border-radius: 16px;
+      padding: 22px 20px 20px;
+      background: linear-gradient(155deg, rgba(22, 24, 34, 0.96) 0%, rgba(12, 13, 20, 0.98) 100%);
+      border: 3px solid transparent;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.72), 0 0 42px var(--rev-glow, rgba(255, 210, 90, 0.35));
+      text-align: center;
+      overflow: visible;
+      transform: scale(0.01);
+      opacity: 0;
+      will-change: transform, opacity;
+    }
+
+    .reveal-card::before {
+      content: "";
+      position: absolute;
+      inset: -3px;
+      border-radius: 18px;
+      padding: 3px;
+      background: linear-gradient(125deg, var(--rev-a, #ffd25a), var(--rev-b, #ff6ea8), var(--rev-c, #8ab4f8), var(--rev-a, #ffd25a));
+      background-size: 240% 240%;
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      animation: revBorderScroll 2.2s linear infinite;
+      pointer-events: none;
+    }
+
+    .reveal-overlay.is-bursting .reveal-card {
+      animation: revCardBackOut 0.42s cubic-bezier(0.22, 1.48, 0.36, 1) forwards;
+    }
+
+    .reveal-emblem {
+      position: relative;
+      width: 78px;
+      height: 78px;
+      margin: 8px auto 10px;
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.04) 70%);
+      border: 1.5px solid rgba(255, 255, 255, 0.28);
+      box-shadow: 0 0 28px var(--rev-a, #ffd25a);
+      animation: revEmblemSway 2.4s ease-in-out infinite;
+    }
+
+    .hold-btn {
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .warn-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: rgba(5, 6, 10, 0.78);
+      backdrop-filter: blur(4px);
+    }
+
+    .warn-backdrop.is-open {
+      display: flex;
+    }
+
+    .reveal-name {
+      font-size: clamp(26px, 6vw, 38px);
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      line-height: 1.08;
+      background: linear-gradient(90deg, var(--rev-a, #ffd25a), var(--rev-b, #ffffff), var(--rev-c, #ff9c47), var(--rev-a, #ffd25a));
+      background-size: 220% auto;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: revBorderScroll 2.4s linear infinite;
+      filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.75));
+    }
+
+    .reveal-pity-badge {
+      position: absolute;
+      top: -10px;
+      right: -8px;
+      padding: 4px 12px;
+      border-radius: 8px;
+      background: #ff4646;
+      border: 2px solid #ffffff;
+      color: #ffffff;
+      font-weight: 900;
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      transform: rotate(12deg);
+      box-shadow: 0 6px 18px rgba(255, 70, 70, 0.55);
+      display: none;
+    }
+
+    .reveal-pity-badge.is-shown {
+      display: block;
+      animation: fxStamp 0.38s 0.25s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+    }
+
+    .reveal-skip-hint {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      color: rgba(255, 255, 255, 0.6);
+      z-index: 25;
+      pointer-events: none;
+    }
+
+    @keyframes revFlash {
+      0% {
+        opacity: 0.78;
+      }
+
+      100% {
+        opacity: 0;
+      }
+    }
+
+    @keyframes revCore {
+      0% {
+        transform: translate(-50%, -50%) scale(0.08);
+        opacity: 0.95;
+      }
+
+      35% {
+        transform: translate(-50%, -50%) scale(1.15);
+        opacity: 0.72;
+      }
+
+      100% {
+        transform: translate(-50%, -50%) scale(1.55);
+        opacity: 0;
+      }
+    }
+
+    @keyframes revRaysSpin {
+      from {
+        transform: translate(-50%, -50%) rotate(0deg) scale(1);
+      }
+
+      to {
+        transform: translate(-50%, -50%) rotate(360deg) scale(1);
+      }
+    }
+
+    @keyframes revRaysSpinRev {
+      from {
+        transform: translate(-50%, -50%) rotate(0deg) scale(1);
+      }
+
+      to {
+        transform: translate(-50%, -50%) rotate(-360deg) scale(1);
+      }
+    }
+
+    @keyframes revRaysPop {
+      0% {
+        opacity: 0;
+      }
+
+      30% {
+        opacity: 0.42;
+      }
+
+      100% {
+        opacity: 0.28;
+      }
+    }
+
+    @keyframes revRaysPop2 {
+      0% {
+        opacity: 0;
+      }
+
+      35% {
+        opacity: 0.26;
+      }
+
+      100% {
+        opacity: 0.16;
+      }
+    }
+
+    @keyframes revRingExpand {
+      0% {
+        transform: translate(-50%, -50%) scale(0.15);
+        opacity: 1;
+        border-width: 10px;
+      }
+
+      100% {
+        transform: translate(-50%, -50%) scale(14);
+        opacity: 0;
+        border-width: 1px;
+      }
+    }
+
+    @keyframes revCardBackOut {
+      0% {
+        transform: scale(0.32);
+        opacity: 0;
+      }
+
+      68% {
+        transform: scale(1.07);
+        opacity: 1;
+      }
+
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes revBorderScroll {
+      0% {
+        background-position: 0% 50%;
+      }
+
+      100% {
+        background-position: 200% 50%;
+      }
+    }
+
+    @keyframes revEmblemSway {
+
+      0%,
+      100% {
+        transform: rotate(-5deg) scale(1);
+      }
+
+      50% {
+        transform: rotate(5deg) scale(1.05);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      .fx-stage.hero-aura,
+      .fx-ring,
+      .fx-shockwave,
+      .fx-spark,
+      .fx-ember,
+      .fx-mote,
+      .fx-confetti,
+      .fx-sweep,
+      .fx-shake,
+      .fx-pop,
+      .reveal-rays,
+      .reveal-rays-2,
+      .reveal-core,
+      .reveal-ring,
+      .reveal-emblem {
+        animation: none !important;
+      }
+
+      .reveal-overlay.is-bursting .reveal-card {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: scale(1) !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="nav">
+    <div class="wrap">
+      <div class="nav-left">
+        <a class="brand" href="./index.html">Anime Crusaders</a>
+        <nav class="nav-links" aria-label="Primary">
+          <a href="./index.html">Home</a>
+          <a href="./constellation.html">Constellations</a>
+          <a href="./minigame.html">Minigames</a>
+          <a href="./shops.html">Shops</a>
+          <a href="./tower.html">Tower</a>
+          <a href="./tournament.html">Tournaments</a>
+          <a href="./reroll.html" aria-current="page">Rerolls</a>
+        </nav>
+      </div>
+      <div class="nav-meta">
+        <span>Traits &amp; Curses <strong id="nav-spent">0</strong></span>
+      </div>
+      <button type="button" class="nav-toggle" aria-expanded="false" aria-label="Toggle navigation"
+        onclick="var n=this.closest('.nav');var o=n.classList.toggle('is-open');this.setAttribute('aria-expanded',o);this.textContent=o?'Close':'Menu';">Menu</button>
+    </div>
+  </header>
+
+  <main class="wrap py-7 sm:py-10 space-y-6 sm:space-y-8">
+    <section class="hero-dots pb-6 border-b">
+      <h1 class="text-2xl sm:text-4xl font-bold tracking-tight">Trait &amp; Curse Reroll Simulator</h1>
+      <p class="text-sm sm:text-base mt-2 max-w-3xl" style="color:var(--muted);">
+        Exact probabilities, pity thresholds, and live roll simulation from <code>Data.Traits</code>,
+        <code>Data.TraitPity</code>, <code>Data.Heroes</code>, and <code>Data.CurseRollChances</code>.
+      </p>
+
+      <div class="card p-3 mt-4 flex items-center justify-between text-xs md:hidden">
+        <div>
+          <div style="color:var(--faint);">Session Spent</div>
+          <div id="nav-spent-m" class="font-mono font-semibold tabular-nums mt-0.5">0 Remnants · 0 Curse</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="flex flex-wrap items-center justify-between gap-2">
+      <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full sm:w-auto">
+        <button data-tab="traits" class="main-tab button small primary">Trait Rerolls</button>
+        <button data-tab="curses" class="main-tab button small">Curse Tokens</button>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+        <button id="btn-cutscene-mode" class="button small" type="button"
+          title="Toggle Mythic & Hero full-screen reveal cutscene">Cutscene: On</button>
+        <button id="btn-fx-mode" class="button small" type="button" title="Toggle full in-game particles or fast FX">FX:
+          Full</button>
+        <button id="btn-sfx-mode" class="button small" type="button" title="Toggle Web Audio SFX">SFX: On</button>
+      </div>
+    </section>
+
+    <!-- TRAITS TAB -->
+    <section id="tab-traits" class="space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="lg:col-span-2 card p-4 sm:p-5 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <div class="text-xs font-mono" style="color:var(--faint);">UNIT POOL &amp; COST</div>
+              <h2 class="text-lg font-bold mt-0.5">Trait Roll Simulator</h2>
+            </div>
+            <select id="unit-mode" class="select w-full sm:w-auto max-w-full" aria-label="Select unit trait pool">
+              <option value="normal">Normal Unit (1x Remnant)</option>
+              <option value="farm">Farm / Gilded Unit (1x Remnant)</option>
+              <option value="escanor">Hero: Escanor (25x Remnants)</option>
+              <option value="goku_god">Hero: Goku God (25x Remnants)</option>
+            </select>
+          </div>
+
+          <div id="trait-result"
+            class="sub-box fx-stage p-5 sm:p-6 text-center min-h-[156px] flex flex-col justify-center">
+            <div id="trait-wash" class="trait-wash"></div>
+            <div id="trait-fx" class="fx-layer"></div>
+            <div class="fx-content space-y-2">
+              <div class="flex items-center justify-center gap-2">
+                <span id="cur-trait-crest" class="trait-crest" aria-hidden="true">
+                  <span id="cur-trait-icon-wrap" class="flex items-center justify-center w-7 h-7"></span>
+                </span>
+                <span id="cur-trait-label" class="text-xs font-mono" style="color:var(--faint);">CURRENT TRAIT</span>
+              </div>
+              <div id="cur-trait-name" class="text-2xl sm:text-3xl font-bold">Click Roll to start</div>
+              <div id="cur-trait-rarity" class="text-xs font-mono" style="color:var(--muted);">--</div>
+              <div id="cur-trait-desc" class="text-xs max-w-lg mx-auto" style="color:var(--muted);">Pity counters and
+                trait weights match ReplicatedStorage.Framework.Data.Traits &amp; TraitPity.</div>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <div class="flex flex-wrap items-center gap-2.5">
+              <button id="btn-roll-1" type="button" class="button primary hold-btn flex-1 sm:flex-none min-w-[160px]">
+                <span id="btn-roll-1-label">Roll 1x</span>
+              </button>
+              <span class="text-xs font-mono" style="color:var(--faint);">Hold Roll 1x to auto-reroll until released</span>
+            </div>
+            <div class="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2">
+              <select id="target-trait" class="select w-full sm:w-auto flex-1" aria-label="Target trait"></select>
+              <div class="flex items-center gap-2">
+                <button id="btn-roll-target" class="button flex-1 sm:flex-none">Roll Until Target</button>
+                <button id="btn-reset-traits" class="button small">Reset</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+            <div class="sub-box p-3">
+              <div style="color:var(--faint);">Rolls Done</div>
+              <div id="t-rolls" class="font-mono font-bold text-base mt-0.5 tabular-nums">0</div>
+            </div>
+            <div class="sub-box p-3">
+              <div style="color:var(--faint);">Remnants Spent</div>
+              <div id="t-remnants" class="font-mono font-bold text-base mt-0.5 tabular-nums">0</div>
+            </div>
+            <div class="sub-box p-3">
+              <div style="color:var(--faint);">Target Odds / Roll</div>
+              <div id="t-odds" class="font-mono font-bold text-base mt-0.5 tabular-nums">--</div>
+            </div>
+            <div class="sub-box p-3">
+              <div style="color:var(--faint);">Expected Rolls</div>
+              <div id="t-expected" class="font-mono font-bold text-base mt-0.5 tabular-nums">--</div>
+            </div>
+          </div>
+
+          <div class="space-y-1.5">
+            <div class="text-xs font-mono" style="color:var(--faint);">RECENT NOTABLE ROLLS</div>
+            <div id="t-log" class="sub-box p-3 text-xs font-mono max-h-36 overflow-y-auto space-y-1"
+              style="color:var(--muted);">No rolls yet.</div>
+          </div>
+        </div>
+
+        <div class="card p-5 space-y-4">
+          <div>
+            <div class="text-xs font-mono" style="color:var(--faint);">TRAITPITY</div>
+            <h2 class="text-lg font-bold mt-0.5">Pity Counters</h2>
+            <p class="text-xs mt-1" style="color:var(--muted);">Guaranteed pity triggers when the counter reaches its
+              limit. Hero units cost 25x Remnants per roll.</p>
+          </div>
+          <div id="pity-list" class="space-y-3"></div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="card p-5 space-y-3">
+          <h3 class="text-base font-semibold">Odds Calculator</h3>
+          <p class="text-xs" style="color:var(--muted);">Calculate the chance of hitting your target trait within a
+            given Remnant budget (excluding pity).</p>
+          <div class="space-y-2 text-xs">
+            <label class="block">
+              <span style="color:var(--muted);">Remnant Budget</span>
+              <input id="calc-remnants" type="number" min="1" value="500" class="input w-full mt-1" />
+            </label>
+            <div class="sub-box p-3 space-y-1">
+              <div class="flex justify-between"><span style="color:var(--faint);">Rolls Possible</span><strong
+                  id="calc-rolls" class="font-mono">--</strong></div>
+              <div class="flex justify-between"><span style="color:var(--faint);">Chance to Hit Target</span><strong
+                  id="calc-prob" class="font-mono" style="color:#6ee787;">--</strong></div>
+              <div class="flex justify-between"><span style="color:var(--faint);">50% / 90% Remnants</span><strong
+                  id="calc-50-90" class="font-mono">--</strong></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="lg:col-span-2 card p-5 space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-semibold">Trait Pool &amp; Exact Weights</h3>
+            <span class="tag" id="pool-badge">Normal Pool</span>
+          </div>
+          <div id="trait-table" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CURSES TAB -->
+    <section id="tab-curses" class="space-y-6 hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="lg:col-span-2 card p-4 sm:p-5 space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div class="text-xs font-mono" style="color:var(--faint);">CURSEROLLCHANCES</div>
+              <h2 class="text-lg font-bold mt-0.5">Curse Token Simulator</h2>
+            </div>
+            <span class="tag">Stats: Damage / SPA / Range</span>
+          </div>
+
+          <div id="curse-stage" class="fx-stage curse-stage rounded-xl p-2 sm:p-3 border border-white/10 bg-black/20">
+            <div id="curse-fx" class="fx-layer"></div>
+            <div id="curse-jackpot" class="fx-jackpot-banner hidden"></div>
+            <div class="fx-content grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div id="curse-boon-card" class="sub-box curse-card-stage p-4 space-y-1">
+                <div id="curse-boon-fx" class="fx-layer"></div>
+                <div class="fx-content space-y-1">
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="font-mono" style="color:#6ee787;">BOON / BUFF (1.2x Mult)</span>
+                    <span id="c-boon-qual" class="font-mono" style="color:var(--faint);">--</span>
+                  </div>
+                  <div id="c-boon-val" class="text-xl font-bold">--</div>
+                  <div class="text-xs font-mono" style="color:var(--muted);">Range: 4.2% – 11.4% (HUGE &ge; 85%)</div>
+                </div>
+              </div>
+              <div id="curse-burden-card" class="sub-box curse-card-stage p-4 space-y-1">
+                <div id="curse-burden-fx" class="fx-layer"></div>
+                <div class="fx-content space-y-1">
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="font-mono" style="color:#ff8a80;">BURDEN / DEBUFF (1.0x Mult)</span>
+                    <span id="c-curse-qual" class="font-mono" style="color:var(--faint);">--</span>
+                  </div>
+                  <div id="c-curse-val" class="text-xl font-bold">--</div>
+                  <div class="text-xs font-mono" style="color:var(--muted);">Range: -3.5% – -9.5% (TINY &ge; 95%)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <button id="btn-curse-1"
+              class="button primary flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5">
+              <span>Roll 1 Curse Token</span>
+            </button>
+            <button id="btn-curse-10" class="button flex-1 sm:flex-none">Roll 10x (Best Boon)</button>
+            <button id="btn-curse-reset" class="button small">Reset</button>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2.5 text-xs">
+            <div class="sub-box p-3">
+              <div style="color:var(--faint);">Tokens Used</div>
+              <div id="c-used" class="font-mono font-bold text-base mt-0.5 tabular-nums">0</div>
+            </div>
+            <div class="sub-box p-3">
+              <div style="color:var(--faint);">Best Boon Seen</div>
+              <div id="c-best-boon" class="font-mono font-bold text-base mt-0.5 tabular-nums" style="color:#6ee787;">--
+              </div>
+            </div>
+            <div class="sub-box p-3">
+              <div style="color:var(--faint);">HUGE Boons (&ge;85%)</div>
+              <div id="c-huge-count" class="font-mono font-bold text-base mt-0.5 tabular-nums">0</div>
+            </div>
+          </div>
+
+          <div class="space-y-1.5">
+            <div class="text-xs font-mono" style="color:var(--faint);">RECENT CURSE ROLLS</div>
+            <div id="c-log" class="sub-box p-3 text-xs font-mono max-h-36 overflow-y-auto space-y-1"
+              style="color:var(--muted);">No rolls yet.</div>
+          </div>
+        </div>
+
+        <div class="card p-5 space-y-4">
+          <div>
+            <div class="text-xs font-mono" style="color:var(--faint);">EXACT MATH</div>
+            <h2 class="text-lg font-bold mt-0.5">Curse Odds Calculator</h2>
+            <p class="text-xs mt-1" style="color:var(--muted);">Uses <code>CurseRollChances.chance_at_least</code>
+              across all 3 tiers (75% / 20% / 5%).</p>
+          </div>
+
+          <div class="space-y-2.5 text-xs">
+            <label class="block">
+              <span style="color:var(--muted);">Target Boon % (4.2% – 11.4%)</span>
+              <input id="c-target-pct" type="number" step="0.1" min="4.2" max="11.4" value="9.0"
+                class="input w-full mt-1" />
+            </label>
+            <label class="block">
+              <span style="color:var(--muted);">Specific Stat?</span>
+              <select id="c-stat-req" class="select w-full mt-1">
+                <option value="any">Any Stat (100%)</option>
+                <option value="specific">Specific Stat (1/3 = 33.3%)</option>
+              </select>
+            </label>
+            <div class="sub-box p-3 space-y-1.5">
+              <div class="flex justify-between"><span style="color:var(--faint);">Chance per Token</span><strong
+                  id="c-chance-roll" class="font-mono" style="color:#6ee787;">--</strong></div>
+              <div class="flex justify-between"><span style="color:var(--faint);">Expected Tokens</span><strong
+                  id="c-expected-tok" class="font-mono">--</strong></div>
+              <div class="flex justify-between"><span style="color:var(--faint);">90% Confidence</span><strong
+                  id="c-conf-90" class="font-mono">--</strong></div>
+            </div>
+          </div>
+
+          <div class="space-y-1.5 pt-2 border-t text-xs">
+            <div class="font-mono text-[11px]" style="color:var(--faint);">TIER BREAKDOWN</div>
+            <div class="sub-box p-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1"><span>Tier 1
+                (75%)</span><span class="font-mono">Boon 4.2%–9.6% · Curse 3.5%–8.0%</span></div>
+            <div class="sub-box p-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1"><span>Tier 2
+                (20%)</span><span class="font-mono">Boon 5.4%–10.8% · Curse 4.5%–9.0%</span></div>
+            <div class="sub-box p-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1"><span>Tier 3
+                (5%)</span><span class="font-mono">Boon 6.0%–11.4% · Curse 5.0%–9.5%</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <span>Data from <code>Traits</code>, <code>TraitPity</code>, <code>Heroes</code> &amp;
+        <code>CurseRollChances</code></span>
+      <span class="footer-links">
+        <a href="./index.html">Home</a>
+        <a href="./constellation.html">Constellations</a>
+        <a href="./minigame.html">Minigames</a>
+        <a href="./shops.html">Shops</a>
+        <a href="./tower.html">Tower</a>
+        <a href="./tournament.html">Tournaments</a>
+        <a href="./reroll.html">Rerolls</a>
+      </span>
+    </div>
+  </footer>
+
+  <div id="reveal-overlay" class="reveal-overlay" role="dialog" aria-modal="true" aria-label="Trait reveal cutscene">
+    <div id="rev-dim" class="reveal-dim"></div>
+    <div id="rev-rays" class="reveal-rays"></div>
+    <div id="rev-rays-2" class="reveal-rays reveal-rays-2"></div>
+    <div id="rev-core" class="reveal-core"></div>
+    <div id="rev-ring" class="reveal-ring"></div>
+    <div id="rev-sparks" class="reveal-sparks"></div>
+    <div id="rev-card-wrap" class="reveal-card-wrap">
+      <div id="rev-card" class="reveal-card">
+        <div id="rev-pity" class="reveal-pity-badge">PITY!</div>
+        <div id="rev-kicker" class="text-xs font-mono tracking-widest uppercase opacity-75" style="color:#fff;">HERO
+          TRAIT</div>
+        <div id="rev-emblem" class="reveal-emblem">
+          <span id="rev-trait-icon" class="relative z-[2] flex items-center justify-center w-14 h-14"></span>
+        </div>
+        <div id="rev-name" class="reveal-name">THE ONE</div>
+        <div id="rev-line" class="text-sm font-mono font-bold mt-1" style="color:#fff;">Hero · 5%</div>
+        <div id="rev-effect" class="text-xs sm:text-sm mt-2 leading-relaxed" style="color:rgba(235,230,220,0.92);">
+        </div>
+      </div>
+    </div>
+    <div id="rev-flash" class="reveal-flash"></div>
+    <div class="reveal-skip-hint">CLICK OR PRESS ESC / SPACE TO SKIP</div>
+  </div>
+
+  <div id="mythic-warn-modal" class="warn-backdrop" role="dialog" aria-modal="true" aria-labelledby="mw-title">
+    <div class="card p-5 sm:p-6 w-full max-w-md space-y-4" style="border-color:rgba(255,110,168,0.45);">
+      <div class="space-y-1">
+        <div class="text-xs font-mono" style="color:#ff6ea8;">MYTHIC+ PROTECTION</div>
+        <h3 id="mw-title" class="text-lg font-bold">Overwrite Mythic+ Trait?</h3>
+      </div>
+      <p id="mw-trait-desc" class="text-sm leading-relaxed" style="color:var(--muted);"></p>
+      <div class="flex flex-wrap items-center justify-end gap-2 pt-2 border-t">
+        <button id="mw-cancel" type="button" class="button small">Keep Trait</button>
+        <button id="mw-confirm" type="button" class="button small primary">Roll Anyway</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const NORMAL_TRAITS = [
+      { id: "superior", name: "Fierce", rarity: "Rare", weight: 29.8, tiers: [{ label: "I", dmg: "+12.5% DMG", w: 50 }, { label: "II", dmg: "+15% DMG", w: 35 }, { label: "III", rarity: "Epic", dmg: "+17.5% DMG", w: 15 }] },
+      { id: "range", name: "Focus", rarity: "Rare", weight: 24.8, tiers: [{ label: "I", dmg: "+15% RNG", w: 50 }, { label: "II", dmg: "+17.5% RNG", w: 35 }, { label: "III", rarity: "Epic", dmg: "+20% RNG", w: 15 }] },
+      { id: "nimble", name: "Agile", rarity: "Rare", weight: 24.8, tiers: [{ label: "I", dmg: "-10% SPA", w: 50 }, { label: "II", dmg: "-12.5% SPA", w: 35 }, { label: "III", rarity: "Epic", dmg: "-15% SPA", w: 15 }] },
+      { id: "neuroplasticity", name: "Tactician", rarity: "Legendary", weight: 9.99, desc: "+50% Unit XP Gain" },
+      { id: "golden", name: "Gilded", rarity: "Legendary", weight: 5, desc: "-10% Upgrade Cost / +30% Farm Yen" },
+      { id: "sniper", name: "Hawkeye", rarity: "Legendary", weight: 2.5, desc: "+35% Range" },
+      { id: "godspeed", name: "Overdrive", rarity: "Legendary", weight: 1.5, desc: "-25% SPA" },
+      { id: "reaper", name: "Eclipse", rarity: "Mythic", weight: 0.8, desc: "+35% DMG, +45% Boss DMG" },
+      { id: "ethereal", name: "Aurora", rarity: "Mythic", weight: 0.36, desc: "+10% DMG (+40% True DMG), +25% Range" },
+      { id: "divine", name: "Radiant", rarity: "Mythic", weight: 0.2, desc: "+50% DMG, -15% SPA, +15% Range" },
+      { id: "culling", name: "Omniscient", rarity: "Mythic", weight: 0.15, desc: "+100% DoT Dur, +40% DMG, +10% Range" },
+      { id: "unique", name: "Crusader", rarity: "Mythic", weight: 0.1, desc: "+300% DMG, -10% SPA, +10% Range, +100% Takedowns, 1 Placement" }
+    ];
+
+    const ESCANOR_TRAITS = [
+      { id: "escanor_seven_sins", name: "Seven Sins", rarity: "Epic", weight: 50, desc: "+50% Crit Chance & Crit DMG to other Sin units" },
+      { id: "escanor_sunspot", name: "Sunspot", rarity: "Legendary", weight: 35, desc: "+2s Burn Dur to all units, +50% Burn DMG to Blaze units" },
+      { id: "escanor_shining", name: "Shining", rarity: "Mythic", weight: 10, desc: "+20% Range & +1% DMG/upgrade to all allies" },
+      { id: "escanor_the_one", name: "The One", rarity: "Hero", weight: 5, desc: "Spawns at Upgrade 3, +25% Hero XP, +35% DMG" }
+    ];
+
+    const GOKU_TRAITS = [
+      { id: "goku_universe_7", name: "Universe 7", rarity: "Epic", weight: 62.5, desc: "+7% Crit DMG per DBZ ally in range (max +77%)" },
+      { id: "goku_radiant_god", name: "Radiant God", rarity: "Legendary", weight: 30, desc: "Light/DBZ crits grant +3% DMG for 10s" },
+      { id: "goku_god_omen", name: "God Omen", rarity: "Mythic", weight: 5, desc: "No Limits buffs reach all allies at 50% strength" },
+      { id: "goku_pure_instinct", name: "Pure Instinct", rarity: "Hero", weight: 2.5, desc: "Sealed 10 waves -> Max Upgrade, -30% Ability CD, +25% DMG, -15% SPA" }
+    ];
+
+    const PITIES = {
+      normal: [
+        { trait: "reaper", name: "Eclipse", limit: 200 },
+        { trait: "ethereal", name: "Aurora", limit: 400 },
+        { trait: "divine", name: "Radiant", limit: 750 },
+        { trait: "culling", name: "Omniscient", limit: 1000 },
+        { trait: "unique", name: "Crusader", limit: 1500 }
+      ],
+      farm: [
+        { trait: "golden", name: "Gilded", limit: 40 },
+        { trait: "reaper", name: "Eclipse", limit: 200 },
+        { trait: "ethereal", name: "Aurora", limit: 400 },
+        { trait: "divine", name: "Radiant", limit: 750 },
+        { trait: "culling", name: "Omniscient", limit: 1000 },
+        { trait: "unique", name: "Crusader", limit: 1500 }
+      ],
+      escanor: [
+        { trait: "escanor_shining", name: "Shining", limit: 15 },
+        { trait: "escanor_the_one", name: "The One", limit: 30 }
+      ],
+      goku_god: [
+        { trait: "goku_god_omen", name: "God Omen", limit: 30 },
+        { trait: "goku_pure_instinct", name: "Pure Instinct", limit: 60 }
+      ]
+    };
+
+    let unitMode = "normal";
+    let rolls = 0;
+    let remnantsSpent = 0;
+    let pityCounts = {};
+    let logEntries = [];
+    let currentTrait = null;
+
+    function isMythicPlus(roll) {
+      return Boolean(roll && (roll.rarity === "Mythic" || roll.rarity === "Hero"));
+    }
+
+    function getPool() {
+      if (unitMode === "escanor") return ESCANOR_TRAITS;
+      if (unitMode === "goku_god") return GOKU_TRAITS;
+      return NORMAL_TRAITS;
+    }
+
+    function rollCost() {
+      return (unitMode === "escanor" || unitMode === "goku_god") ? 25 : 1;
+    }
+
+    function weightedPick(list) {
+      let total = 0;
+      for (const x of list) total += x.weight || x.w || 0;
+      let r = Math.random() * total;
+      for (const x of list) {
+        r -= (x.weight || x.w || 0);
+        if (r <= 0) return x;
+      }
+      return list[list.length - 1];
+    }
+
+    function doSingleRoll() {
+      const pool = getPool();
+      const pityList = PITIES[unitMode];
+      rolls++;
+      remnantsSpent += rollCost();
+
+      let chosen = null;
+      let pityTriggered = false;
+      for (const p of pityList) {
+        pityCounts[p.trait] = (pityCounts[p.trait] || 0) + 1;
+      }
+      for (const p of [...pityList].sort((a, b) => b.limit - a.limit)) {
+        if (pityCounts[p.trait] >= p.limit) {
+          chosen = pool.find((t) => t.id === p.trait);
+          pityTriggered = true;
+          break;
+        }
+      }
+      if (!chosen) chosen = weightedPick(pool);
+      if (pityCounts[chosen.id] !== undefined) pityCounts[chosen.id] = 0;
+
+      let tierLabel = "";
+      let rarity = chosen.rarity;
+      let desc = chosen.desc || "";
+      if (chosen.tiers) {
+        const tier = weightedPick(chosen.tiers);
+        tierLabel = " " + tier.label;
+        if (tier.rarity) rarity = tier.rarity;
+        desc = tier.dmg;
+      }
+
+      const fullName = chosen.name + tierLabel;
+      if (rarity === "Mythic" || rarity === "Hero" || chosen.id === "golden" || chosen.id === "godspeed" || pityTriggered) {
+        logEntries.unshift(`#${rolls}: ${fullName} (${rarity})${pityTriggered ? " [PITY]" : ""}`);
+        if (logEntries.length > 40) logEntries.pop();
+      }
+      const res = { id: chosen.id, fullName, rarity, desc, pityTriggered };
+      currentTrait = res;
+      return res;
+    }
+
+    function updateTargetDropdown() {
+      const pool = getPool();
+      const sel = document.getElementById("target-trait");
+      const prev = sel.value;
+      sel.innerHTML = [...pool].reverse().map((t) => `<option value="${t.id}">Target: ${t.name} (${t.weight}%)</option>`).join("");
+      if (pool.some((t) => t.id === prev)) sel.value = prev;
+    }
+
+    function updateCalculatorAndTable() {
+      const pool = getPool();
+      const targetId = document.getElementById("target-trait").value;
+      const target = pool.find((t) => t.id === targetId) || pool[pool.length - 1];
+      const totalW = pool.reduce((a, b) => a + b.weight, 0);
+      const p = target.weight / totalW;
+
+      document.getElementById("t-odds").textContent = `${(p * 100).toFixed(2)}%`;
+      document.getElementById("t-expected").textContent = `${Math.round(1 / p).toLocaleString()} rolls`;
+
+      const budget = Math.max(1, Number(document.getElementById("calc-remnants").value) || 1);
+      const cost = rollCost();
+      const nRolls = Math.floor(budget / cost);
+      const prob = 1 - Math.pow(1 - p, nRolls);
+      const r50 = Math.ceil(Math.log(0.5) / Math.log(1 - p)) * cost;
+      const r90 = Math.ceil(Math.log(0.1) / Math.log(1 - p)) * cost;
+
+      document.getElementById("calc-rolls").textContent = nRolls.toLocaleString();
+      document.getElementById("calc-prob").textContent = `${(prob * 100).toFixed(2)}%`;
+      document.getElementById("calc-50-90").textContent = `${r50.toLocaleString()} / ${r90.toLocaleString()}`;
+
+      const labels = { normal: "Normal Pool (1x)", farm: "Farm Pool (1x + Gilded Pity)", escanor: "Escanor Pool (25x)", goku_god: "Goku God Pool (25x)" };
+      document.getElementById("pool-badge").textContent = labels[unitMode];
+      document.getElementById("trait-table").innerHTML = [...pool].reverse().map((t) => {
+        const pct = ((t.weight / totalW) * 100).toFixed(2);
+        const info = t.tiers ? t.tiers.map((x) => `${x.label}: ${x.dmg} (${x.w}%)`).join(" · ") : t.desc;
+        return `
+          <div class="sub-box p-3 flex items-start gap-2.5">
+            <span class="ac-badge shrink-0" style="border-color:rgba(255,255,255,0.12);">${traitIconHtml(t.id, 22, t.rarity)}</span>
+            <div class="min-w-0 flex-1 space-y-1">
+              <div class="flex items-center justify-between gap-2">
+                <span class="font-semibold text-sm rarity-${t.rarity} truncate">${t.name}</span>
+                <span class="font-mono text-xs shrink-0">${pct}%</span>
+              </div>
+              <div class="text-[11px]" style="color:var(--muted);">${info}</div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function syncSpentLabels() {
+      const txt = `${remnantsSpent.toLocaleString()} Remnants · ${curseUsed.toLocaleString()} Curse`;
+      document.getElementById("nav-spent").textContent = txt;
+      const m = document.getElementById("nav-spent-m");
+      if (m) m.textContent = txt;
+    }
+
+    function renderTraitUI(lastRoll) {
+      document.getElementById("t-rolls").textContent = rolls.toLocaleString();
+      document.getElementById("t-remnants").textContent = remnantsSpent.toLocaleString();
+      syncSpentLabels();
+
+      if (lastRoll) {
+        const nameEl = document.getElementById("cur-trait-name");
+        nameEl.textContent = lastRoll.fullName + (lastRoll.pityTriggered ? " (PITY)" : "");
+        nameEl.className = `text-2xl sm:text-3xl font-bold rarity-${lastRoll.rarity}`;
+        document.getElementById("cur-trait-rarity").textContent = `${lastRoll.rarity} Trait`;
+        document.getElementById("cur-trait-desc").textContent = lastRoll.desc;
+      }
+
+      const poolMap = Object.fromEntries(getPool().map((t) => [t.id, t]));
+      document.getElementById("pity-list").innerHTML = PITIES[unitMode].map((p) => {
+        const cur = pityCounts[p.trait] || 0;
+        const pct = Math.min(100, (cur / p.limit) * 100);
+        const rName = poolMap[p.trait] ? poolMap[p.trait].rarity : "Mythic";
+        return `
+          <div class="sub-box p-3 space-y-1.5">
+            <div class="flex items-center justify-between gap-2 text-xs">
+              <span class="inline-flex items-center gap-2 font-semibold min-w-0">
+                ${traitIconHtml(p.trait, 18, rName)}
+                <span class="truncate">${p.name}</span>
+              </span>
+              <span class="font-mono shrink-0">${cur} / ${p.limit}</span>
+            </div>
+            <div class="progress-track">
+              <div class="bar-fill" style="width:${pct.toFixed(1)}%;background:#8ab4f8;"></div>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      document.getElementById("t-log").innerHTML = logEntries.length
+        ? logEntries.map((l) => `<div>${l}</div>`).join("")
+        : "No notable rolls yet.";
+    }
+
+    function resetTraits() {
+      rolls = 0;
+      remnantsSpent = 0;
+      pityCounts = {};
+      logEntries = [];
+      currentTrait = null;
+      document.getElementById("cur-trait-name").textContent = "Click Roll to start";
+      document.getElementById("cur-trait-name").className = "text-2xl sm:text-3xl font-bold";
+      document.getElementById("cur-trait-rarity").textContent = "--";
+      document.getElementById("cur-trait-desc").textContent = "Pity counters and trait weights match ReplicatedStorage.Framework.Data.Traits & TraitPity.";
+      renderTraitUI(null);
+    }
+
+    // CURSE SIMULATOR
+    const CURSE_STATS = [
+      { id: "damage", name: "Damage" },
+      { id: "attack_cooldown", name: "SPA" },
+      { id: "range", name: "Range" }
+    ];
+    const CURSE_TIERS = [
+      { chance: 75, amount: 0.03 },
+      { chance: 20, amount: 0.04 },
+      { chance: 5, amount: 0.045 }
+    ];
+    const SPREAD_MIN = 0.1;
+    const SPREAD_MAX = 1.0;
+    const SPREAD_SCALE = 0.05;
+    const BOON_MULT = 1.2;
+
+    let curseUsed = 0;
+    let bestBoon = 0;
+    let hugeCount = 0;
+    let curseLogs = [];
+
+    function rollCurseHalf(kind) {
+      const mult = kind === "Boon" ? BOON_MULT : 1;
+      const tier = weightedPick(CURSE_TIERS);
+      const raw = (Math.random() * (SPREAD_MAX - SPREAD_MIN) + SPREAD_MIN) * SPREAD_SCALE + tier.amount;
+      const val = raw * mult;
+      const minV = (0.03 + SPREAD_MIN * SPREAD_SCALE) * mult;
+      const maxV = (0.045 + SPREAD_MAX * SPREAD_SCALE) * mult;
+      const norm = Math.min(1, Math.max(0, (val - minV) / (maxV - minV)));
+      const qual = kind === "Boon" ? norm : 1 - norm;
+      return { val, qual };
+    }
+
+    function rollCurseToken() {
+      curseUsed++;
+      const s1 = CURSE_STATS[Math.floor(Math.random() * CURSE_STATS.length)];
+      const others = CURSE_STATS.filter((s) => s.id !== s1.id);
+      const s2 = others[Math.floor(Math.random() * others.length)];
+      const boon = rollCurseHalf("Boon");
+      const curse = rollCurseHalf("Curse");
+      const boonPct = boon.val * 100;
+      const cursePct = curse.val * 100;
+      if (boonPct > bestBoon) bestBoon = boonPct;
+      const isHuge = boon.qual >= 0.85;
+      if (isHuge) hugeCount++;
+
+      curseLogs.unshift(`#${curseUsed}: +${boonPct.toFixed(1)}% ${s1.name}${isHuge ? " [HUGE]" : ""} | -${cursePct.toFixed(1)}% ${s2.name}`);
+      if (curseLogs.length > 35) curseLogs.pop();
+      return { boonId: s1.id, boonStat: s1.name, boonPct, boonQual: boon.qual, isHuge, curseId: s2.id, curseStat: s2.name, cursePct, curseQual: curse.qual };
+    }
+
+    function renderCurseUI(res) {
+      document.getElementById("c-used").textContent = curseUsed.toLocaleString();
+      document.getElementById("c-best-boon").textContent = bestBoon > 0 ? `+${bestBoon.toFixed(1)}%` : "--";
+      document.getElementById("c-huge-count").textContent = hugeCount.toLocaleString();
+      syncSpentLabels();
+      if (res) {
+        document.getElementById("c-boon-val").innerHTML = `<span class="inline-flex items-center gap-2">${statIconHtml(res.boonId, 20)}<span>${res.boonStat} +${res.boonPct.toFixed(1)}%</span></span>`;
+        document.getElementById("c-boon-qual").textContent = `${Math.round(res.boonQual * 100)}%${res.isHuge ? " HUGE" : ""}`;
+        document.getElementById("c-curse-val").innerHTML = `<span class="inline-flex items-center gap-2">${statIconHtml(res.curseId, 20)}<span>${res.curseStat} -${res.cursePct.toFixed(1)}%</span></span>`;
+        document.getElementById("c-curse-qual").textContent = `${Math.round(res.curseQual * 100)}%${res.curseQual >= 0.95 ? " MIN" : ""}`;
+      }
+      document.getElementById("c-log").innerHTML = curseLogs.length
+        ? curseLogs.map((l) => `<div>${l}</div>`).join("")
+        : "No rolls yet.";
+    }
+
+    function updateCurseCalc() {
+      const targetPct = Math.min(11.4, Math.max(4.2, Number(document.getElementById("c-target-pct").value) || 9.0)) / 100;
+      const specific = document.getElementById("c-stat-req").value === "specific";
+      let prob = 0;
+      for (const tier of CURSE_TIERS) {
+        const lo = (tier.amount + SPREAD_MIN * SPREAD_SCALE) * BOON_MULT;
+        const hi = (tier.amount + SPREAD_MAX * SPREAD_SCALE) * BOON_MULT;
+        const frac = targetPct <= lo ? 1 : targetPct >= hi ? 0 : (hi - targetPct) / (hi - lo);
+        prob += (tier.chance / 100) * frac;
+      }
+      if (specific) prob /= 3;
+      document.getElementById("c-chance-roll").textContent = `${(prob * 100).toFixed(2)}%`;
+      document.getElementById("c-expected-tok").textContent = prob > 0 ? Math.round(1 / prob).toLocaleString() : "∞";
+      document.getElementById("c-conf-90").textContent = prob > 0 ? Math.ceil(Math.log(0.1) / Math.log(1 - prob)).toLocaleString() : "∞";
+    }
+
+    document.querySelectorAll(".main-tab").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const tab = btn.dataset.tab;
+        document.querySelectorAll(".main-tab").forEach((b) => b.classList.toggle("primary", b.dataset.tab === tab));
+        document.getElementById("tab-traits").classList.toggle("hidden", tab !== "traits");
+        document.getElementById("tab-curses").classList.toggle("hidden", tab !== "curses");
+      });
+    });
+
+    // EXACT IN-GAME TRAITREROLLUI / HEROTRAITREVEAL / CURSEREROLLUI / REROLLKIT ENGINE
+    const RARITY_COLOR = {
+      Rare: "#8ab4f8",
+      Epic: "#c482ff",
+      Legendary: "#ffd25a",
+      Mythic: "#ff6ea8",
+      Hero: "#ff9c47"
+    };
+    const RARITY_RANK = { Rare: 1, Epic: 2, Legendary: 3, Mythic: 4, Hero: 5 };
+    const TRAIT_THEMES = {
+      escanor_the_one: ["#ffcf4d", "#ff9c2a", "#ffe885"],
+      escanor_shining: ["#fff3c4", "#ffd25a", "#ffffff"],
+      goku_pure_instinct: ["#9ce8ff", "#d8f4ff", "#5ea8ff"],
+      goku_god_omen: ["#ff3b3b", "#ff6e42", "#ff2a6d"],
+      reaper: ["#a84dff", "#e64dff", "#ff2a78"],
+      ethereal: ["#4dffbe", "#4de1ff", "#b270ff"],
+      divine: ["#fff3c4", "#ffd25a", "#ffffff"],
+      culling: ["#b366ff", "#ff66cc", "#5ee7ff"],
+      unique: ["#ff5577", "#ffd25a", "#4dffbe"]
+    };
+    function traitIconHtml(traitId, sizePx, rarityName) {
+      const sz = sizePx || 24;
+      const theme = TRAIT_THEMES[traitId];
+      const c1 = theme ? theme[0] : (RARITY_COLOR[rarityName] || "#ffd25a");
+      const c2 = theme && theme[1] ? theme[1] : "#ffffff";
+      return `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" class="ac-icon" aria-hidden="true"><polygon points="12,2 15.2,8.8 22,12 15.2,15.2 12,22 8.8,15.2 2,12 8.8,8.8" fill="${c1}" stroke="${c2}" stroke-width="1.2"/></svg>`;
+    }
+
+    function statIconHtml(statId, sizePx) {
+      const sz = sizePx || 18;
+      if (statId === "damage") {
+        return `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" class="ac-icon" aria-hidden="true"><path d="M14.5 4 20 9.5 10.5 19H5v-5.5L14.5 4Z" fill="#ff9b70" fill-opacity="0.35" stroke="#ff9b70" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
+      }
+      if (statId === "attack_cooldown") {
+        return `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" class="ac-icon" aria-hidden="true"><path d="M13 2 5 13h6l-1 9 9-12h-6V2Z" fill="#ffd84d" fill-opacity="0.35" stroke="#ffd84d" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
+      }
+      return `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" class="ac-icon" aria-hidden="true"><circle cx="12" cy="12" r="7.5" fill="none" stroke="#7cc4ff" stroke-width="2"/><circle cx="12" cy="12" r="2.2" fill="#7cc4ff"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="#7cc4ff" stroke-width="2" stroke-linecap="round"/></svg>`;
+    }
+
+    function setTraitCrestIcon(wrapEl, traitId, sizePx, rarityName) {
+      if (!wrapEl) return;
+      wrapEl.innerHTML = traitIconHtml(traitId, sizePx || 28, rarityName);
+    }
+    let cutsceneEnabled = true;
+    let fxMode = "full";
+    let sfxEnabled = true;
+    try {
+      const savedCut = localStorage.getItem("saz_reroll_cutscene");
+      const savedFx = localStorage.getItem("saz_reroll_fx");
+      const savedSfx = localStorage.getItem("saz_reroll_sfx");
+      if (savedCut === "on" || savedCut === "off") cutsceneEnabled = savedCut === "on";
+      if (savedFx === "full" || savedFx === "fast") fxMode = savedFx;
+      if (savedSfx === "on" || savedSfx === "off") sfxEnabled = savedSfx === "on";
+    } catch (_) { }
+
+    let audioCtx = null;
+    let lastRollSoundAt = 0;
+    function getAudioCtx() {
+      if (!sfxEnabled) return null;
+      if (!audioCtx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) audioCtx = new AC();
+      }
+      if (audioCtx && audioCtx.state === "suspended") {
+        audioCtx.resume().catch(() => { });
+      }
+      return audioCtx;
+    }
+
+    function playTone(freq, dur, type, gainPeak, delaySec, endFreq) {
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      const now = ctx.currentTime + (delaySec || 0);
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type || "sine";
+      osc.frequency.setValueAtTime(freq, now);
+      if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, now + dur);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(gainPeak || 0.055, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + dur + 0.02);
+    }
+
+    // Mirrors RerollKit.play_roll_sound / TraitRerollUI play_roll_sound (0.08s throttle, randomized pitch)
+    function playRollClickSound(isCurse) {
+      if (!sfxEnabled) return;
+      const now = performance.now();
+      if (now - lastRollSoundAt < 80) return;
+      lastRollSoundAt = now;
+      const pitch = 0.94 + Math.random() * 0.14;
+      playTone((isCurse ? 440 : 580) * pitch, 0.05, "triangle", 0.036, 0, (isCurse ? 320 : 410) * pitch);
+    }
+
+    // Mirrors HeroTraitReveal & RerollKit jackpot SFX
+    function playRevealCutsceneSound(level, isPity) {
+      if (!sfxEnabled) return;
+      playTone(180, 0.18, "sine", 0.04, 0, 420); // HERO_SWELL
+      setTimeout(() => {
+        if (!sfxEnabled) return;
+        if (level >= 3) {
+          playTone(110, 0.38, "triangle", 0.09, 0, 52); // HERO_BOOM
+          [440, 554.37, 659.25, 880, 1108.73].forEach((n, idx) => playTone(n, 0.36, "sine", 0.055, idx * 0.05));
+          if (isPity) playTone(329.63, 0.25, "triangle", 0.05, 0.08, 659.25);
+        } else {
+          playTone(587.33, 0.18, "sine", 0.05, 0);
+          playTone(880, 0.28, "sine", 0.06, 0.07);
+        }
+      }, 150);
+    }
+
+    function playJackpotSound() {
+      if (!sfxEnabled) return;
+      playTone(130, 0.35, "triangle", 0.08, 0, 65);
+      [392, 523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((n, idx) => playTone(n, 0.38, "sine", 0.055, idx * 0.048));
+    }
+
+    function spawnFXEl(layer, className, vars, durMs) {
+      if (!layer) return null;
+      const el = document.createElement("div");
+      el.className = className;
+      if (vars) {
+        for (const [k, v] of Object.entries(vars)) el.style.setProperty(k, v);
+      }
+      layer.appendChild(el);
+      setTimeout(() => el.remove(), durMs || 950);
+      return el;
+    }
+
+    function fxFlash(layer, background) {
+      const el = spawnFXEl(layer, "fx-flash", null, 480);
+      if (el) el.style.background = background;
+    }
+
+    function fxSweep(layer, color) {
+      const el = spawnFXEl(layer, "fx-sweep", null, 660);
+      if (el) el.style.background = `linear-gradient(90deg, transparent 0%, ${color} 50%, transparent 100%)`;
+    }
+
+    function fxRing(layer, color, durMs) {
+      spawnFXEl(layer, "fx-ring", {
+        "--fx-color": color,
+        "--fx-dur": `${(durMs || 600) / 1000}s`
+      }, (durMs || 600) + 60);
+    }
+
+    function fxShockwave(layer, color) {
+      spawnFXEl(layer, "fx-shockwave", { "--fx-color": color }, 520);
+    }
+
+    function spawnSparkParticle(layer, color, sx, sy, sz, dx, dy, rot, durSec) {
+      return spawnFXEl(layer, "fx-spark", {
+        "--fx-color": color,
+        "--sx": sx,
+        "--sy": sy,
+        "--sz": `${sz}px`,
+        "--dx": `${dx.toFixed(1)}px`,
+        "--dy": `${dy.toFixed(1)}px`,
+        "--rot": `${rot.toFixed(1)}deg`,
+        "--fx-dur": `${durSec.toFixed(2)}s`
+      }, Math.round(durSec * 1000) + 120);
+    }
+
+    function fxSparkBurst(layer, color, count, spreadScale, ox, oy) {
+      const scale = spreadScale || 1;
+      const originX = ox != null ? ox : 50;
+      const originY = oy != null ? oy : 50;
+      for (let i = 0; i < count; i++) {
+        const angle = ((Math.PI * 2) / count) * i + (Math.random() - 0.5) * 0.25;
+        const dist = (44 + Math.random() * 76) * scale;
+        const dx = Math.cos(angle) * dist;
+        const dy = Math.sin(angle) * dist * 0.72;
+        const deg = (angle * 180) / Math.PI;
+        spawnSparkParticle(
+          layer,
+          color,
+          `${originX + (Math.random() - 0.5) * 6}%`,
+          `${originY + (Math.random() - 0.5) * 6}%`,
+          11 + Math.random() * 9,
+          dx,
+          dy,
+          deg,
+          0.38 + Math.random() * 0.18
+        );
+      }
+    }
+
+    function fxRiseEmbers(layer, color, count, staggerMs, timers) {
+      for (let i = 0; i < count; i++) {
+        const t = setTimeout(() => {
+          spawnFXEl(layer, "fx-ember", {
+            "--fx-color": color,
+            "--sx": `${8 + Math.random() * 84}%`,
+            "--sz": `${4 + Math.random() * 4}px`,
+            "--dx": `${((Math.random() - 0.5) * 34).toFixed(1)}px`,
+            "--fx-dur": `${(0.65 + Math.random() * 0.28).toFixed(2)}s`
+          }, 1050);
+        }, i * (staggerMs || 45));
+        if (timers) timers.push(t);
+      }
+    }
+
+    function fxConfetti(layer, palette, count) {
+      for (let i = 0; i < count; i++) {
+        const color = palette[i % palette.length];
+        spawnFXEl(layer, "fx-confetti", {
+          "--fx-color": color,
+          "--sx": `${6 + Math.random() * 88}%`,
+          "--cw": `${5 + Math.random() * 4}px`,
+          "--ch": `${8 + Math.random() * 6}px`,
+          "--dx": `${((Math.random() - 0.5) * 56).toFixed(1)}px`,
+          "--rot": `${Math.round(180 + Math.random() * 420)}deg`,
+          "--fx-dur": `${(0.95 + Math.random() * 0.45).toFixed(2)}s`
+        }, 1500);
+      }
+    }
+
+    function fxStamp(stage, text, color) {
+      if (!stage || !text) return;
+      stage.querySelectorAll(".fx-stamp").forEach((n) => n.remove());
+      const badge = document.createElement("div");
+      badge.className = "fx-stamp";
+      badge.style.setProperty("--fx-color", color);
+      badge.textContent = text;
+      stage.appendChild(badge);
+      setTimeout(() => badge.remove(), 2200);
+    }
+
+    function triggerClassAnim(el, cls) {
+      if (!el) return;
+      el.classList.remove(cls);
+      void el.offsetWidth;
+      el.classList.add(cls);
+    }
+
+    // Exact RerollKit.celebrate Levels 1, 2, 3
+    function celebrateStage(stage, layer, level, color, stampText, timers, isCurse, originXY) {
+      if (!layer) return;
+      const fast = fxMode === "fast";
+      const ox = originXY ? originXY[0] : 50;
+      const oy = originXY ? originXY[1] : 50;
+      const flashBg = isCurse
+        ? (level >= 3
+          ? "linear-gradient(135deg, rgba(255,212,96,0.48), rgba(215,40,150,0.3), rgba(150,70,235,0.36))"
+          : "linear-gradient(135deg, rgba(255,50,90,0.34), rgba(215,40,150,0.28), rgba(150,70,235,0.28))")
+        : color;
+
+      if (level <= 1) {
+        fxRing(layer, color, fast ? 380 : 600);
+        fxSparkBurst(layer, color, fast ? 4 : 12, 1, ox, oy);
+      } else if (level === 2) {
+        fxFlash(layer, flashBg);
+        fxSweep(layer, color);
+        fxRing(layer, color, 600);
+        fxSparkBurst(layer, color, fast ? 10 : 16, 1.2, ox, oy);
+        if (stampText) fxStamp(stage, stampText, color);
+        if (!fast) {
+          timers.push(setTimeout(() => {
+            fxRing(layer, color, 700);
+            fxSparkBurst(layer, color, 12, 1.5, ox, oy);
+          }, 140));
+        }
+      } else {
+        fxFlash(layer, flashBg);
+        fxSweep(layer, color);
+        fxShockwave(layer, color);
+        fxRing(layer, color, 600);
+        fxSparkBurst(layer, color, fast ? 12 : 22, 1.25, ox, oy);
+        if (stampText) fxStamp(stage, stampText, color);
+        stage.style.setProperty("--shk", isCurse ? "-8px" : "-6px");
+        triggerClassAnim(stage, "fx-shake");
+        if (!fast) {
+          timers.push(setTimeout(() => {
+            fxRing(layer, color, 700);
+            fxSparkBurst(layer, color, 18, 1.5, ox, oy);
+          }, 140));
+          timers.push(setTimeout(() => {
+            fxRing(layer, "#ffffff", 800);
+            fxSparkBurst(layer, color, 16, 1.9, ox, oy);
+          }, 300));
+          fxRiseEmbers(layer, color, 14, 50, timers);
+          fxConfetti(layer, isCurse ? ["#ffd25a", "#6ee787", "#ff6ea8", "#c482ff"] : [color, "#ffd25a", "#ffffff", "#ff6ea8"], 24);
+        } else {
+          fxRiseEmbers(layer, color, 6, 35, timers);
+        }
+      }
+    }
+
+    function syncHeroAura() {
+      const stage = document.getElementById("trait-result");
+      if (stage) stage.classList.toggle("hero-aura", unitMode === "escanor" || unitMode === "goku_god");
+    }
+
+    function syncFxToggles() {
+      const cutBtn = document.getElementById("btn-cutscene-mode");
+      const fxBtn = document.getElementById("btn-fx-mode");
+      const sfxBtn = document.getElementById("btn-sfx-mode");
+      if (cutBtn) {
+        cutBtn.textContent = cutsceneEnabled ? "Cutscene: On" : "Cutscene: Off";
+        cutBtn.classList.toggle("primary", cutsceneEnabled);
+      }
+      if (fxBtn) {
+        fxBtn.textContent = fxMode === "full" ? "FX: Full" : "FX: Fast";
+        fxBtn.classList.toggle("primary", fxMode === "full");
+      }
+      if (sfxBtn) {
+        sfxBtn.textContent = sfxEnabled ? "SFX: On" : "SFX: Off";
+        sfxBtn.classList.toggle("primary", sfxEnabled);
+      }
+    }
+
+    function getTraitChancePct(roll) {
+      if (!roll) return 0;
+      const pool = getPool();
+      const total = pool.reduce((s, t) => s + t.weight, 0);
+      const base = pool.find((t) => t.id === roll.id);
+      if (!base) return 0;
+      return (base.weight / total) * 100;
+    }
+
+    function getCrestOriginPct() {
+      const stage = document.getElementById("trait-result");
+      const crest = document.getElementById("cur-trait-crest");
+      if (!stage || !crest) return [50, 32];
+      const sr = stage.getBoundingClientRect();
+      const cr = crest.getBoundingClientRect();
+      if (!sr.width || !sr.height) return [50, 32];
+      const x = ((cr.left + cr.width / 2 - sr.left) / sr.width) * 100;
+      const y = ((cr.top + cr.height / 2 - sr.top) / sr.height) * 100;
+      return [Math.max(10, Math.min(90, x)), Math.max(12, Math.min(88, y))];
+    }
+
+    function updateTraitCardLook(roll) {
+      const wash = document.getElementById("trait-wash");
+      const crest = document.getElementById("cur-trait-crest");
+      const iconWrap = document.getElementById("cur-trait-icon-wrap");
+      const stage = document.getElementById("trait-result");
+      if (!roll) {
+        if (wash) wash.style.opacity = "0";
+        if (crest) {
+          crest.style.color = "var(--muted)";
+          crest.style.borderColor = "rgba(255,255,255,0.16)";
+          crest.style.setProperty("--crest-glow", "transparent");
+        }
+        if (iconWrap) iconWrap.innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" class="ac-icon" style="opacity:0.75;" aria-hidden="true"><polygon points="12,2 15.2,8.8 22,12 15.2,15.2 12,22 8.8,15.2 2,12 8.8,8.8" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>`;
+        if (stage) stage.style.borderColor = "";
+        return;
+      }
+      if (iconWrap) setTraitCrestIcon(iconWrap, roll.id, 28, roll.rarity);
+      const theme = TRAIT_THEMES[roll.id];
+      const color = theme ? theme[0] : (RARITY_COLOR[roll.rarity] || "#8ab4f8");
+      if (wash) {
+        wash.style.background = `linear-gradient(90deg, ${color}33 0%, ${color}08 55%, transparent 72%)`;
+        wash.style.opacity = "1";
+      }
+      if (crest) {
+        crest.style.color = color;
+        crest.style.borderColor = color;
+        crest.style.setProperty("--crest-glow", `${color}66`);
+      }
+      if (stage && unitMode !== "escanor" && unitMode !== "goku_god") {
+        stage.style.borderColor = `${color}70`;
+      }
+    }
+
+    let traitAnimTimers = [];
+    let traitAnimGen = 0;
+    let cutsceneGen = 0;
+    let isCutsceneActive = false;
+    let curseAnimTimers = [];
+    let curseAnimGen = 0;
+    let goldEmbersUntil = 0;
+    let activeRevealSkip = null;
+
+    function clearAnimTimers(list) {
+      while (list.length) clearTimeout(list.pop());
+    }
+
+    function traitCelebrateLevel(roll) {
+      if (!roll) return 1;
+      if (roll.pityTriggered || roll.rarity === "Hero" || roll.rarity === "Mythic") return 3;
+      if (roll.rarity === "Legendary") return 2;
+      return 1;
+    }
+
+    // Instant in-game card snap + Wash + BurstRing + SparkBurst + ShineSwipe (TraitRerollUI.lua:3310-3328)
+    function snapTraitCard(roll, options) {
+      const opts = options || {};
+      const stage = document.getElementById("trait-result");
+      const layer = document.getElementById("trait-fx");
+      const nameEl = document.getElementById("cur-trait-name");
+      const crestEl = document.getElementById("cur-trait-crest");
+      const lblEl = document.getElementById("cur-trait-label");
+      if (lblEl) lblEl.textContent = "CURRENT TRAIT";
+
+      renderTraitUI(roll);
+      updateTraitCardLook(roll);
+      triggerClassAnim(nameEl, "fx-pop");
+      triggerClassAnim(crestEl, "fx-pop");
+      triggerClassAnim(stage, "fx-pop");
+
+      const theme = TRAIT_THEMES[roll.id];
+      const color = theme ? theme[0] : (RARITY_COLOR[roll.rarity] || "#8ab4f8");
+      const origin = getCrestOriginPct();
+      const level = traitCelebrateLevel(roll);
+
+      if (opts.reduced) {
+        // Matches TraitRerollUI autoRolling reduced pulse (line 3322)
+        fxRing(layer, color, 420);
+        fxSparkBurst(layer, color, 4, 0.85, origin[0], origin[1]);
+        playRollClickSound(false);
+        return;
+      }
+
+      if (opts.landingAfterCutscene) {
+        fxFlash(layer, color);
+        fxSweep(layer, color);
+        fxShockwave(layer, color);
+        fxSparkBurst(layer, color, 13, 1.45, origin[0], origin[1]);
+        fxConfetti(layer, theme || [color, "#ffd25a", "#ffffff"], 24);
+        stage.style.setProperty("--shk", "-7px");
+        triggerClassAnim(stage, "fx-shake");
+        const stampText = roll.pityTriggered ? "PITY!" : roll.rarity === "Hero" ? "HERO!" : roll.rarity === "Mythic" ? "MYTHIC!" : "";
+        if (stampText) fxStamp(stage, stampText, color);
+        return;
+      }
+
+      fxSweep(layer, color);
+      const stampText = roll.pityTriggered ? "PITY!" : roll.rarity === "Hero" ? "HERO!" : roll.rarity === "Mythic" ? "MYTHIC!" : "";
+      celebrateStage(stage, layer, level, color, stampText, traitAnimTimers, false, origin);
+      if (level >= 3) playRevealCutsceneSound(3, roll.pityTriggered);
+      else playRollClickSound(false);
+    }
+
+    function openHeroTraitCutscene(roll, onComplete) {
+      stopHoldRoll();
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      const overlay = document.getElementById("reveal-overlay");
+      const cardWrap = document.getElementById("rev-card-wrap");
+      const sparksEl = document.getElementById("rev-sparks");
+      const flashEl = document.getElementById("rev-flash");
+      const pityEl = document.getElementById("rev-pity");
+      const theme = TRAIT_THEMES[roll.id] || (roll.rarity === "Hero" ? ["#ffcf4d", "#ff9c2a", "#ffffff"] : ["#ff6ea8", "#c482ff", "#8ab4f8"]);
+      const level = roll.rarity === "Hero" ? 3 : 2;
+      const pct = getTraitChancePct(roll);
+      const pctStr = pct >= 1 ? pct.toFixed(1) : pct >= 0.01 ? pct.toFixed(2) : pct.toPrecision(2);
+
+      overlay.style.setProperty("--rev-a", theme[0]);
+      overlay.style.setProperty("--rev-b", theme[1] || theme[0]);
+      overlay.style.setProperty("--rev-c", theme[2] || theme[0]);
+      overlay.style.setProperty("--rev-glow", `${theme[0]}66`);
+      overlay.style.setProperty("--rev-dim-core", `${theme[0]}2e`);
+
+      document.getElementById("rev-kicker").textContent = roll.rarity === "Hero" ? "HERO TRAIT" : "MYTHIC TRAIT REVEAL";
+      document.getElementById("rev-name").textContent = roll.fullName.toUpperCase();
+      document.getElementById("rev-line").textContent = `${roll.rarity}  ·  ${pctStr}% Roll Chance`;
+      document.getElementById("rev-effect").textContent = roll.desc;
+      document.getElementById("rev-emblem").style.color = theme[0];
+      setTraitCrestIcon(document.getElementById("rev-trait-icon"), roll.id, 52, roll.rarity);
+      pityEl.classList.toggle("is-shown", Boolean(roll.pityTriggered));
+
+      cardWrap.style.transform = "";
+      cardWrap.style.opacity = "";
+      sparksEl.innerHTML = "";
+      flashEl.classList.remove("is-active");
+      document.getElementById("rev-rays-2").style.display = level >= 3 ? "block" : "none";
+      overlay.classList.remove("is-visible", "is-bursting", "is-open");
+      void overlay.offsetWidth;
+      overlay.classList.add("is-open");
+
+      isCutsceneActive = true;
+      const gen = ++cutsceneGen;
+      const localTimers = [];
+      let finished = false;
+      const openedAt = performance.now();
+
+      function finishToCard() {
+        if (finished || gen !== cutsceneGen) return;
+        finished = true;
+        activeRevealSkip = null;
+        while (localTimers.length) clearTimeout(localTimers.pop());
+
+        const targetEl = document.getElementById("cur-trait-crest") || document.getElementById("trait-result");
+        const sr = targetEl.getBoundingClientRect();
+        const cr = cardWrap.getBoundingClientRect();
+        const rawDx = (sr.left + sr.width / 2) - (cr.left + cr.width / 2);
+        const rawDy = (sr.top + sr.height / 2) - (cr.top + cr.height / 2);
+        const dx = Math.max(-window.innerWidth, Math.min(window.innerWidth, rawDx));
+        const dy = Math.max(-window.innerHeight, Math.min(window.innerHeight, rawDy));
+        cardWrap.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) scale(0.18)`;
+        cardWrap.style.opacity = "0";
+        overlay.classList.remove("is-visible");
+
+        setTimeout(() => {
+          if (gen !== cutsceneGen) return;
+          overlay.classList.remove("is-open", "is-bursting");
+          cardWrap.style.transform = "";
+          cardWrap.style.opacity = "";
+          sparksEl.innerHTML = "";
+          isCutsceneActive = false;
+          if (onComplete) onComplete();
+        }, 420);
+      }
+
+      activeRevealSkip = () => {
+        if (performance.now() - openedAt < 280) return;
+        finishToCard();
+      };
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (gen === cutsceneGen && !finished) overlay.classList.add("is-visible");
+        });
+      });
+      playRevealCutsceneSound(level, roll.pityTriggered);
+
+      localTimers.push(setTimeout(() => {
+        if (gen !== cutsceneGen || finished) return;
+        overlay.classList.add("is-bursting");
+        triggerClassAnim(flashEl, "is-active");
+        const sparkTotal = 10 + level * 8;
+        for (let i = 0; i < sparkTotal; i++) {
+          const angle = ((Math.PI * 2) / sparkTotal) * i + (Math.random() - 0.5) * 0.22;
+          const dist = Math.min(window.innerWidth, window.innerHeight) * (0.28 + Math.random() * 0.28);
+          spawnSparkParticle(
+            sparksEl,
+            theme[i % theme.length],
+            "50%",
+            "50%",
+            16 + Math.random() * 14,
+            Math.cos(angle) * dist,
+            Math.sin(angle) * dist,
+            Math.random() * 360,
+            0.62
+          );
+        }
+      }, 150));
+
+      localTimers.push(setTimeout(() => {
+        if (gen !== cutsceneGen || finished) return;
+        finishToCard();
+      }, 1850));
+    }
+
+    document.getElementById("reveal-overlay").addEventListener("click", () => {
+      if (activeRevealSkip) activeRevealSkip();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (isCutsceneActive && (e.key === "Escape" || e.key === " " || e.key === "Enter")) {
+        e.preventDefault();
+        if (activeRevealSkip) activeRevealSkip();
+        return;
+      }
+      if (e.key === "Escape") {
+        const mw = document.getElementById("mythic-warn-modal");
+        if (mw && mw.classList.contains("is-open")) closeMythicWarning();
+      }
+    });
+
+    function shouldPlayCutscene(roll) {
+      return cutsceneEnabled && roll && (roll.rarity === "Mythic" || roll.rarity === "Hero" || roll.pityTriggered);
+    }
+
+    function animateTraitRoll1x() {
+      clearAnimTimers(traitAnimTimers);
+      traitAnimGen++;
+      const res = doSingleRoll();
+      if (shouldPlayCutscene(res)) {
+        renderTraitCountersAndLogsOnly();
+        openHeroTraitCutscene(res, () => snapTraitCard(res, { landingAfterCutscene: true }));
+      } else {
+        snapTraitCard(res);
+      }
+    }
+
+    function renderTraitCountersAndLogsOnly() {
+      document.getElementById("t-rolls").textContent = rolls.toLocaleString();
+      document.getElementById("t-remnants").textContent = remnantsSpent.toLocaleString();
+      syncSpentLabels();
+      document.getElementById("pity-list").innerHTML = PITIES[unitMode].map((p) => {
+        const cur = pityCounts[p.trait] || 0;
+        const pct = Math.min(100, (cur / p.limit) * 100);
+        return `
+          <div class="sub-box p-3 space-y-1.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-semibold">${p.name}</span>
+              <span class="font-mono">${cur} / ${p.limit}</span>
+            </div>
+            <div class="progress-track">
+              <div class="bar-fill" style="width:${pct.toFixed(1)}%;background:#8ab4f8;"></div>
+            </div>
+          </div>
+        `;
+      }).join("");
+      document.getElementById("t-log").innerHTML = logEntries.length
+        ? logEntries.map((l) => `<div>${l}</div>`).join("")
+        : "No notable rolls yet.";
+    }
+
+    function animateTraitBatch(count, targetId) {
+      clearAnimTimers(traitAnimTimers);
+      const gen = ++traitAnimGen;
+      const batch = [];
+      let bestSpecial = null;
+      for (let i = 0; i < count; i++) {
+        const r = doSingleRoll();
+        batch.push(r);
+        if (!bestSpecial || (RARITY_RANK[r.rarity] || 0) > (RARITY_RANK[bestSpecial.rarity] || 0) || r.pityTriggered) {
+          bestSpecial = r;
+        }
+        if (targetId && r.id === targetId) break;
+      }
+      const last = batch[batch.length - 1];
+      if (!last) return;
+
+      // Exact 10x AutoRoll pulse sequence (steps live with auto-rolling reduced sparks & pauses on Mythic/Hero!)
+      if (count <= 10 && !targetId && fxMode === "full") {
+        batch.forEach((roll, idx) => {
+          traitAnimTimers.push(setTimeout(() => {
+            if (gen !== traitAnimGen) return;
+            const isFinal = idx === batch.length - 1;
+            if (shouldPlayCutscene(roll) && isFinal) {
+              renderTraitCountersAndLogsOnly();
+              openHeroTraitCutscene(roll, () => snapTraitCard(roll, { landingAfterCutscene: true }));
+            } else {
+              snapTraitCard(roll, { reduced: !isFinal });
+            }
+          }, idx * 75));
+        });
+        return;
+      }
+
+      renderTraitCountersAndLogsOnly();
+      const highlight = targetId ? last : bestSpecial;
+      if (shouldPlayCutscene(highlight)) {
+        openHeroTraitCutscene(highlight, () => snapTraitCard(last, { landingAfterCutscene: true }));
+      } else {
+        snapTraitCard(last);
+      }
+    }
+
+    function calcPerfectCurseChancePct() {
+      let boonP = 0;
+      let curseP = 0;
+      const boonThresh = (0.03 + SPREAD_MIN * SPREAD_SCALE + 0.85 * ((0.045 + SPREAD_MAX * SPREAD_SCALE) - (0.03 + SPREAD_MIN * SPREAD_SCALE))) * BOON_MULT;
+      const curseThresh = (0.03 + SPREAD_MIN * SPREAD_SCALE) + 0.05 * ((0.045 + SPREAD_MAX * SPREAD_SCALE) - (0.03 + SPREAD_MIN * SPREAD_SCALE));
+      for (const tier of CURSE_TIERS) {
+        const bLo = (tier.amount + SPREAD_MIN * SPREAD_SCALE) * BOON_MULT;
+        const bHi = (tier.amount + SPREAD_MAX * SPREAD_SCALE) * BOON_MULT;
+        const bFrac = boonThresh <= bLo ? 1 : boonThresh >= bHi ? 0 : (bHi - boonThresh) / (bHi - bLo);
+        boonP += (tier.chance / 100) * bFrac;
+
+        const cLo = tier.amount + SPREAD_MIN * SPREAD_SCALE;
+        const cHi = tier.amount + SPREAD_MAX * SPREAD_SCALE;
+        const cFrac = curseThresh >= cHi ? 1 : curseThresh <= cLo ? 0 : (curseThresh - cLo) / (cHi - cLo);
+        curseP += (tier.chance / 100) * cFrac;
+      }
+      return boonP * curseP * 100;
+    }
+
+    // Exact CurseRerollUI.on_unit_cursed_changed (CurseRerollUI.lua:2268-2377)
+    function playCurseReveal(res, reduced) {
+      const stage = document.getElementById("curse-stage");
+      const stageLayer = document.getElementById("curse-fx");
+      const boonCard = document.getElementById("curse-boon-card");
+      const boonLayer = document.getElementById("curse-boon-fx");
+      const burdenCard = document.getElementById("curse-burden-card");
+      const burdenLayer = document.getElementById("curse-burden-fx");
+      const jackpotEl = document.getElementById("curse-jackpot");
+
+      renderCurseUI(res);
+      triggerClassAnim(document.getElementById("c-boon-val"), "fx-pop");
+      triggerClassAnim(document.getElementById("c-curse-val"), "fx-pop");
+      triggerClassAnim(boonCard, "fx-pop");
+      triggerClassAnim(burdenCard, "fx-pop");
+
+      const isHugeBoon = res.boonQual >= 0.85;
+      const isTinyDebuff = res.curseQual >= 0.95;
+      const isPerfect = isHugeBoon && isTinyDebuff;
+
+      // Stage flash & embers (_burst_embers + flashGradient in CurseRerollUI)
+      fxFlash(stageLayer, isPerfect
+        ? "linear-gradient(135deg, rgba(255,226,120,0.68), rgba(255,180,60,0.45))"
+        : "linear-gradient(135deg, rgba(255,255,255,0.28), rgba(220,24,60,0.32))");
+      stage.style.setProperty("--shk", isPerfect ? "-10px" : "-6px");
+      triggerClassAnim(stage, "fx-shake");
+
+      if (isPerfect) goldEmbersUntil = performance.now() + 2500;
+      fxRiseEmbers(stageLayer, isPerfect ? "#ffd460" : "#e63c6e", reduced ? 6 : 16, 25, curseAnimTimers);
+
+      // Independent Boon & Burden card celebrations (`v314.Boon` & `v314.Burden`)
+      celebrateStage(
+        boonCard,
+        boonLayer,
+        isPerfect ? 3 : (isHugeBoon ? 2 : 1),
+        isPerfect ? "#ffd460" : (isHugeBoon ? "#3cd78c" : "#6ee787"),
+        (!isPerfect && isHugeBoon) ? "HUGE BUFF!" : "",
+        curseAnimTimers,
+        false
+      );
+      celebrateStage(
+        burdenCard,
+        burdenLayer,
+        isPerfect ? 3 : (isTinyDebuff ? 2 : 1),
+        isPerfect ? "#ffd460" : (isTinyDebuff ? "#ee4a4c" : "#ff8a80"),
+        (!isPerfect && isTinyDebuff) ? "TINY DEBUFF!" : "",
+        curseAnimTimers,
+        false
+      );
+
+      // PERFECT CURSE jackpot (RerollKit.jackpot in CurseRerollUI.lua:2345)
+      if (isPerfect) {
+        const pctChance = calcPerfectCurseChancePct();
+        jackpotEl.innerHTML = `<div class="fx-jackpot-title">PERFECT CURSE!</div><div class="fx-jackpot-sub">HUGE BUFF + TINY DEBUFF · ${pctChance.toFixed(2)}% CHANCE</div>`;
+        jackpotEl.classList.remove("hidden");
+        fxShockwave(stageLayer, "#ffd460");
+        fxConfetti(stageLayer, ["#ffd460", "#fff4b8", "#6ee787", "#ff9c47"], 28);
+        setTimeout(() => jackpotEl.classList.add("hidden"), 2100);
+        playJackpotSound();
+      } else if (isHugeBoon || isTinyDebuff) {
+        playRevealCutsceneSound(2, false);
+      } else {
+        playRollClickSound(true);
+      }
+    }
+
+    function animateCurseRoll(count) {
+      clearAnimTimers(curseAnimTimers);
+      const gen = ++curseAnimGen;
+      const jackpotEl = document.getElementById("curse-jackpot");
+      if (jackpotEl) jackpotEl.classList.add("hidden");
+
+      if (count === 1 || fxMode === "fast") {
+        let best = null;
+        for (let i = 0; i < count; i++) {
+          const r = rollCurseToken();
+          if (!best || r.boonPct > best.boonPct) best = r;
+        }
+        playCurseReveal(best, false);
+        return;
+      }
+
+      // 10x auto-roll fast live step pulse keeping Best Boon highlight at the end
+      let best = null;
+      const batch = [];
+      for (let i = 0; i < count; i++) {
+        const r = rollCurseToken();
+        batch.push(r);
+        if (!best || r.boonPct > best.boonPct) best = r;
+      }
+      batch.forEach((r, idx) => {
+        curseAnimTimers.push(setTimeout(() => {
+          if (gen !== curseAnimGen) return;
+          const isFinal = idx === batch.length - 1;
+          playCurseReveal(isFinal ? best : r, !isFinal);
+        }, idx * 75));
+      });
+    }
+
+    // Continuous subtle floating embers inside CurseRerollUI (`_goldEmbersUntil` gold or crimson embers)
+    // and ambient trait motes inside TraitRerollUI
+    setInterval(() => {
+      if (fxMode !== "full" || document.hidden) return;
+      const traitsOpen = !document.getElementById("tab-traits").classList.contains("hidden");
+      if (traitsOpen) {
+        const layer = document.getElementById("trait-fx");
+        if (!layer) return;
+        const color = (unitMode === "escanor" || unitMode === "goku_god") ? "#ff9c47" : "#8ab4f8";
+        spawnFXEl(layer, "fx-mote", {
+          "--fx-color": color,
+          "--sx": `${12 + Math.random() * 76}%`,
+          "--sy": `${55 + Math.random() * 35}%`,
+          "--sz": `${3 + Math.random() * 3}px`,
+          "--dx": `${((Math.random() - 0.5) * 24).toFixed(1)}px`,
+          "--fx-dur": "1.35s"
+        }, 1420);
+      } else {
+        const layer = document.getElementById("curse-fx");
+        if (!layer) return;
+        const isGold = performance.now() < goldEmbersUntil;
+        spawnFXEl(layer, "fx-ember", {
+          "--fx-color": isGold ? "#ffd460" : (Math.random() > 0.5 ? "#eb1e46" : "#be28aa"),
+          "--sx": `${10 + Math.random() * 80}%`,
+          "--sz": `${3 + Math.random() * 3}px`,
+          "--dx": `${((Math.random() - 0.5) * 26).toFixed(1)}px`,
+          "--fx-dur": "1.15s"
+        }, 1220);
+      }
+    }, 340);
+
+    document.getElementById("btn-cutscene-mode").addEventListener("click", () => {
+      cutsceneEnabled = !cutsceneEnabled;
+      try { localStorage.setItem("saz_reroll_cutscene", cutsceneEnabled ? "on" : "off"); } catch (_) { }
+      syncFxToggles();
+    });
+    document.getElementById("btn-fx-mode").addEventListener("click", () => {
+      fxMode = fxMode === "full" ? "fast" : "full";
+      try { localStorage.setItem("saz_reroll_fx", fxMode); } catch (_) { }
+      syncFxToggles();
+    });
+    document.getElementById("btn-sfx-mode").addEventListener("click", () => {
+      sfxEnabled = !sfxEnabled;
+      try { localStorage.setItem("saz_reroll_sfx", sfxEnabled ? "on" : "off"); } catch (_) { }
+      syncFxToggles();
+      if (sfxEnabled) playRollClickSound(false);
+    });
+
+    document.getElementById("unit-mode").addEventListener("change", (e) => {
+      stopHoldRoll();
+      clearAnimTimers(traitAnimTimers);
+      traitAnimGen++;
+      unitMode = e.target.value;
+      syncHeroAura();
+      updateTraitCardLook(null);
+      updateTargetDropdown();
+      resetTraits();
+      updateCalculatorAndTable();
+    });
+    document.getElementById("target-trait").addEventListener("change", updateCalculatorAndTable);
+    document.getElementById("calc-remnants").addEventListener("input", updateCalculatorAndTable);
+
+    let pendingRollAction = null;
+    function openMythicWarning(action) {
+      if (!currentTrait) return;
+      pendingRollAction = action;
+      const modal = document.getElementById("mythic-warn-modal");
+      document.getElementById("mw-trait-desc").innerHTML = `You currently have <strong class="rarity-${currentTrait.rarity}">${currentTrait.fullName}</strong> (${currentTrait.rarity}). Rolling again will overwrite it.`;
+      modal.classList.add("is-open");
+      document.getElementById("mw-cancel").focus();
+    }
+
+    function closeMythicWarning() {
+      pendingRollAction = null;
+      document.getElementById("mythic-warn-modal").classList.remove("is-open");
+    }
+
+    document.getElementById("mw-cancel").addEventListener("click", closeMythicWarning);
+    document.getElementById("mythic-warn-modal").addEventListener("click", (e) => {
+      if (e.target.id === "mythic-warn-modal") closeMythicWarning();
+    });
+    document.getElementById("mw-confirm").addEventListener("click", () => {
+      const fn = pendingRollAction;
+      closeMythicWarning();
+      if (fn) fn();
+    });
+
+    let holdDelayTimer = null;
+    let holdInterval = null;
+    let holdActive = false;
+    let holdAutoStarted = false;
+    let skipNextClick = false;
+
+    function stopHoldRoll() {
+      if (holdDelayTimer) { clearTimeout(holdDelayTimer); holdDelayTimer = null; }
+      if (holdInterval) { clearInterval(holdInterval); holdInterval = null; }
+      holdActive = false;
+      holdAutoStarted = false;
+      const stage = document.getElementById("trait-result");
+      if (stage) stage.classList.remove("fx-rolling");
+      const lbl = document.getElementById("btn-roll-1-label");
+      if (lbl) lbl.textContent = "Roll 1x";
+    }
+
+    function performHoldStep() {
+      const modalOpen = document.getElementById("mythic-warn-modal").classList.contains("is-open");
+      if (isCutsceneActive || modalOpen) {
+        stopHoldRoll();
+        return;
+      }
+      clearAnimTimers(traitAnimTimers);
+      traitAnimGen++;
+      const res = doSingleRoll();
+      if (isMythicPlus(res)) {
+        stopHoldRoll();
+        if (shouldPlayCutscene(res)) {
+          renderTraitCountersAndLogsOnly();
+          openHeroTraitCutscene(res, () => snapTraitCard(res, { landingAfterCutscene: true }));
+        } else {
+          snapTraitCard(res);
+        }
+        return;
+      }
+      if (holdAutoStarted) {
+        snapTraitCard(res, { reduced: true });
+      } else {
+        snapTraitCard(res);
+      }
+    }
+
+    const btnRoll1 = document.getElementById("btn-roll-1");
+    btnRoll1.addEventListener("contextmenu", (e) => e.preventDefault());
+    btnRoll1.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      if (isCutsceneActive || document.getElementById("mythic-warn-modal").classList.contains("is-open")) return;
+      skipNextClick = true;
+      if (isMythicPlus(currentTrait)) {
+        openMythicWarning(() => animateTraitRoll1x());
+        return;
+      }
+      stopHoldRoll();
+      holdActive = true;
+      holdAutoStarted = false;
+      try { btnRoll1.setPointerCapture(e.pointerId); } catch (_) { }
+      performHoldStep();
+      if (!holdActive) return;
+      holdDelayTimer = setTimeout(() => {
+        if (!holdActive) return;
+        holdAutoStarted = true;
+        document.getElementById("trait-result").classList.add("fx-rolling");
+        document.getElementById("btn-roll-1-label").textContent = "Rolling... (Release)";
+        holdInterval = setInterval(performHoldStep, 85);
+      }, 220);
+    });
+
+    ["pointerup", "pointercancel", "lostpointercapture"].forEach((evt) => {
+      btnRoll1.addEventListener(evt, stopHoldRoll);
+    });
+    window.addEventListener("blur", stopHoldRoll);
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) stopHoldRoll();
+    });
+
+    btnRoll1.addEventListener("click", () => {
+      if (skipNextClick) {
+        skipNextClick = false;
+        return;
+      }
+      if (isCutsceneActive) return;
+      if (isMythicPlus(currentTrait)) {
+        openMythicWarning(() => animateTraitRoll1x());
+        return;
+      }
+      animateTraitRoll1x();
+    });
+
+    document.getElementById("btn-roll-target").addEventListener("click", () => {
+      if (isCutsceneActive) return;
+      const targetId = document.getElementById("target-trait").value;
+      if (isMythicPlus(currentTrait)) {
+        openMythicWarning(() => animateTraitBatch(10000, targetId));
+        return;
+      }
+      animateTraitBatch(10000, targetId);
+    });
+    document.getElementById("btn-reset-traits").addEventListener("click", () => {
+      stopHoldRoll();
+      clearAnimTimers(traitAnimTimers);
+      traitAnimGen++;
+      cutsceneGen++;
+      isCutsceneActive = false;
+      activeRevealSkip = null;
+      document.getElementById("reveal-overlay").classList.remove("is-open", "is-visible", "is-bursting");
+      document.getElementById("trait-fx").innerHTML = "";
+      document.getElementById("trait-result").querySelectorAll(".fx-stamp").forEach((n) => n.remove());
+      updateTraitCardLook(null);
+      const lbl = document.getElementById("cur-trait-label");
+      if (lbl) lbl.textContent = "CURRENT TRAIT";
+      resetTraits();
+    });
+
+    document.getElementById("btn-curse-1").addEventListener("click", () => animateCurseRoll(1));
+    document.getElementById("btn-curse-10").addEventListener("click", () => animateCurseRoll(10));
+    document.getElementById("btn-curse-reset").addEventListener("click", () => {
+      clearAnimTimers(curseAnimTimers);
+      curseAnimGen++;
+      goldEmbersUntil = 0;
+      document.getElementById("curse-fx").innerHTML = "";
+      document.getElementById("curse-boon-fx").innerHTML = "";
+      document.getElementById("curse-burden-fx").innerHTML = "";
+      document.getElementById("curse-jackpot").classList.add("hidden");
+      document.getElementById("curse-stage").querySelectorAll(".fx-stamp").forEach((n) => n.remove());
+      curseUsed = 0; bestBoon = 0; hugeCount = 0; curseLogs = [];
+      document.getElementById("c-boon-val").textContent = "--";
+      document.getElementById("c-boon-qual").textContent = "--";
+      document.getElementById("c-curse-val").textContent = "--";
+      document.getElementById("c-curse-qual").textContent = "--";
+      renderCurseUI(null);
+    });
+    document.getElementById("c-target-pct").addEventListener("input", updateCurseCalc);
+    document.getElementById("c-stat-req").addEventListener("change", updateCurseCalc);
+
+    syncFxToggles();
+    syncHeroAura();
+    updateTargetDropdown();
+    updateCalculatorAndTable();
+    renderTraitUI(null);
+    updateTraitCardLook(null);
+    updateCurseCalc();
+  </script>
+</body>
+
+</html>

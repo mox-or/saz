@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tournament Forecast — Anime Crusaders</title>
+  <meta name="theme-color" content="#0f0f0f" />
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap">
+      <div class="nav-left">
+        <a class="brand" href="./index.html">Anime Crusaders</a>
+        <nav class="nav-links" aria-label="Primary">
+          <a href="./index.html">Home</a>
+          <a href="./constellation.html">Constellations</a>
+          <a href="./minigame.html">Minigames</a>
+          <a href="./shops.html">Shops</a>
+          <a href="./tower.html">Tower</a>
+          <a href="./tournament.html" aria-current="page">Tournaments</a>
+          <a href="./reroll.html">Rerolls</a>
+        </nav>
+      </div>
+      <div class="nav-meta">
+        <span>Season <strong id="nav-season">--</strong></span>
+        <span style="color:#454545;">|</span>
+        <span>Reset <strong id="nav-reset">--d --h --m</strong></span>
+      </div>
+      <button type="button" class="nav-toggle" aria-expanded="false" aria-label="Toggle navigation" onclick="var n=this.closest('.nav');var o=n.classList.toggle('is-open');this.setAttribute('aria-expanded',o);this.textContent=o?'Close':'Menu';">Menu</button>
+    </div>
+  </header>
+
+  <main class="wrap py-7 sm:py-10 space-y-6 sm:space-y-8">
+    <section class="hero-dots pb-6 border-b">
+      <h1 class="text-2xl sm:text-4xl font-bold tracking-tight">Tournament Forecast (12 Weeks)</h1>
+      <p class="text-sm sm:text-base mt-2 max-w-3xl" style="color:var(--muted);">
+        Deterministic Solo &amp; Duo tournament generator from <code>TournamentRotation.make_mode</code> and <code>Modifiers.pick</code>. Forecasts maps, modifiers, scoring type (Damage vs Kills), traitless mode rotation, resistances, weaknesses, and HP scaling 12 weeks ahead.
+      </p>
+
+      <div class="card p-3 mt-4 flex items-center justify-between text-xs md:hidden">
+        <div>
+          <div style="color:var(--faint);">Current Season</div>
+          <div id="nav-season-m" class="font-mono font-semibold tabular-nums mt-0.5">--</div>
+        </div>
+        <div class="text-right">
+          <div style="color:var(--faint);">Next Rotation</div>
+          <div id="nav-reset-m" class="font-mono font-semibold tabular-nums mt-0.5">--d --h --m</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-4" id="current-cards"></section>
+
+    <section class="space-y-4">
+      <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-2">
+          <button data-mode="both" class="mode-btn button small primary">Both Modes</button>
+          <button data-mode="solo" class="mode-btn button small">Solo Only</button>
+          <button data-mode="duo" class="mode-btn button small">Duo Only</button>
+          <button id="traitless-only" class="button small">Traitless Only</button>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="tz-toggle" class="button small w-full sm:w-auto">Time: Local</button>
+        </div>
+      </div>
+
+      <div id="weeks-list" class="space-y-4"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <span>Data from <code>TournamentRotation</code>, <code>Modifiers</code> &amp; <code>ChallengeAndRewards</code></span>
+      <span class="footer-links">
+        <a href="./index.html">Home</a>
+        <a href="./constellation.html">Constellations</a>
+        <a href="./minigame.html">Minigames</a>
+        <a href="./shops.html">Shops</a>
+        <a href="./tower.html">Tower</a>
+        <a href="./tournament.html">Tournaments</a>
+        <a href="./reroll.html">Rerolls</a>
+      </span>
+    </div>
+  </footer>
+
+  <script>
+    const WEEK_SECONDS = 604800;
+    const WEEK_OFFSET = 471600;
+    const FIRST_WEEK = 2967;
+    const WEEKS_AHEAD = 12;
+    const MODE_SALT = { solo: 101, duo: 211 };
+    const BASE_HP = { damage: 3.5, kills: 1.5 };
+    const BASE_HP_V2 = { damage: 1.9, kills: 0.8 };
+    const DUO_HP = 2;
+    const TRAITLESS_FROM_WEEK = 2967;
+    const TRAITLESS_HP = 0.5;
+    const MODIFIERS_FROM_WEEK = 2967;
+    const WEEKLY_HP_GROWTH = 1.1;
+
+    const LEVELS = [
+      { id: "karakura_infinite", weight: 1 },
+      { id: "shibuya_infinite", weight: 1, until_week: 2966 },
+      { id: "Entertainment_district_infinite", weight: 1 },
+      { id: "DemonCity_infinite", weight: 1 },
+      { id: "SoulSociety_infinite", weight: 1 },
+      { id: "RuinedWestCity_infinite", weight: 1 },
+      { id: "Culling_Games_infinite", weight: 1 },
+      { id: "Doldrey_infinite", weight: 1 },
+      { id: "namek_infinite", weight: 1 },
+      { id: "marineford_infinite", weight: 1 },
+      { id: "Sword_Arena_infinite", weight: 1, from_week: 2968 }
+    ];
+
+    const LEVEL_NAMES = {
+      karakura_infinite: "Karakura Town",
+      shibuya_infinite: "Shibuya",
+      Entertainment_district_infinite: "Demon District",
+      DemonCity_infinite: "Devil City",
+      SoulSociety_infinite: "Soul Society",
+      RuinedWestCity_infinite: "West City (Ruined)",
+      Culling_Games_infinite: "Culling Games",
+      Doldrey_infinite: "Doldrey",
+      namek_infinite: "Planet Namek",
+      marineford_infinite: "Marine's Ford",
+      Sword_Arena_infinite: "Sword Arena",
+      tourney_banana_island: "Banana Island",
+      tourney_liones_kingdom: "Liones Kingdom"
+    };
+
+    const CHALLENGES = [
+      { id: "short_range", hp: 0.75, weight: 1 },
+      { id: "mini_range", hp: 0.6, weight: 1 },
+      { id: "fast_enemies", hp: 0.9, weight: 1 },
+      { id: "godspeed_enemies", hp: 0.7, weight: 1 },
+      { id: "superultrafast_enemies", hp: 0.6, weight: 1 },
+      { id: "flying_enemies", hp: 0.85, weight: 1 },
+      { id: "boss_waves", hp: 0.8, weight: 1 },
+      { id: "tank_enemies", hp: 0.7, weight: 1 },
+      { id: "shield_enemies", hp: 0.85, weight: 1 },
+      { id: "hyper_shield_enemies", hp: 0.65, weight: 1 },
+      { id: "regen_enemies", hp: 0.85, weight: 1 },
+      { id: "hyper_regen_enemies", hp: 0.7, weight: 1 },
+      { id: "high_cost", hp: 0.85, weight: 1 },
+      { id: "double_cost", hp: 0.7, weight: 1 }
+    ];
+
+    const MODIFIER_POOL = [
+      { id: "short_range", weight: 1 },
+      { id: "mini_range", weight: 1 },
+      { id: "fast_enemies", weight: 1 },
+      { id: "godspeed_enemies", weight: 1 },
+      { id: "flying_enemies", weight: 1 },
+      { id: "boss_waves", weight: 1 },
+      { id: "tank_enemies", weight: 1 },
+      { id: "shield_enemies", weight: 1 },
+      { id: "hyper_shield_enemies", weight: 1 },
+      { id: "regen_enemies", weight: 1 },
+      { id: "hyper_regen_enemies", weight: 1 },
+      { id: "high_cost", weight: 1 },
+      { id: "double_cost", weight: 1 }
+    ];
+
+    const MOD_CATEGORIES = {
+      high_cost: "cost", double_cost: "cost",
+      short_range: "range", mini_range: "range",
+      fast_enemies: "speed", godspeed_enemies: "speed", superultrafast_enemies: "speed",
+      regen_enemies: "regen", hyper_regen_enemies: "regen",
+      tank_enemies: "armor",
+      shield_enemies: "shield", hyper_shield_enemies: "shield",
+      flying_enemies: "flying",
+      boss_waves: "bosses"
+    };
+
+    const MOD_BLOCKED = { "double_cost|godspeed_enemies": true };
+
+    const MOD_META = {
+      high_cost: { name: "High Cost", desc: "1.5x placement & upgrade cost" },
+      double_cost: { name: "Double Cost", desc: "2x placement & upgrade cost" },
+      short_range: { name: "Short Range", desc: "-33% unit range (0.67x)" },
+      mini_range: { name: "Mini-Range", desc: "-75% unit range (0.25x)" },
+      fast_enemies: { name: "Fast Enemies", desc: "1.5x enemy speed" },
+      godspeed_enemies: { name: "Godspeed Enemies", desc: "2.5x enemy speed" },
+      superultrafast_enemies: { name: "SUPER ULTRA Fast", desc: "10x enemy speed" },
+      flying_enemies: { name: "Flying Enemies", desc: "All enemies are Flying" },
+      boss_waves: { name: "Boss Waves", desc: "Every wave spawns a boss" },
+      tank_enemies: { name: "Tank Enemies", desc: "+20% HP & 25% damage reduction" },
+      shield_enemies: { name: "Shield Enemies", desc: "+2 shield hits per enemy" },
+      hyper_shield_enemies: { name: "Steel-Plated", desc: "+10 shield hits per enemy" },
+      regen_enemies: { name: "Regen Enemies", desc: "1% HP/sec regeneration" },
+      hyper_regen_enemies: { name: "Hyper-Regen", desc: "10% HP/sec regeneration" }
+    };
+
+    const SCORE_TYPES = [{ id: "damage", weight: 2 }, { id: "kills", weight: 1 }];
+    const DAMAGE_TYPES = ["physical", "magic", "fire_damage", "ice_damage", "water_damage", "air_damage", "lightning_damage", "light_damage", "dark_damage"];
+    const DMG_META = {
+      physical: { name: "Physical", color: "#ff9b70" },
+      magic: { name: "Magic", color: "#9c8cff" },
+      fire_damage: { name: "Fire", color: "#ff7a52" },
+      ice_damage: { name: "Ice", color: "#90e8ff" },
+      water_damage: { name: "Water", color: "#58b8ff" },
+      air_damage: { name: "Wind", color: "#7ff0b4" },
+      lightning_damage: { name: "Lightning", color: "#ffd84d" },
+      light_damage: { name: "Light", color: "#fff0a6" },
+      dark_damage: { name: "Dark", color: "#b688ff" }
+    };
+
+    function dmgIconHtml(id, sizePx) {
+      const sz = sizePx || 14;
+      const dm = DMG_META[id] || { color: "#fff" };
+      const svgs = {
+        physical: `<path d="M14.5 4 20 9.5 10.5 19H5v-5.5L14.5 4Z" fill="${dm.color}" fill-opacity="0.35" stroke="${dm.color}" stroke-width="1.5" stroke-linejoin="round"/>`,
+        magic: `<path d="M12 2.5 14.5 9.5 21.5 12l-7 2.5L12 21.5l-2.5-7L2.5 12l7-2.5Z" fill="${dm.color}" fill-opacity="0.4" stroke="${dm.color}" stroke-width="1.5"/>`,
+        fire_damage: `<path d="M12.5 2.5c2 3 4.5 5.2 4.5 9a5 5 0 1 1-10 0c0-2.4 1.3-4.3 2.8-6.1.2 1.6 1 2.4 2.2 2.8-.3-2 .1-3.8.5-5.7Z" fill="${dm.color}" fill-opacity="0.4" stroke="${dm.color}" stroke-width="1.5" stroke-linejoin="round"/>`,
+        ice_damage: `<path d="M12 2v20M4.5 6.5l15 11M19.5 6.5l-15 11" stroke="${dm.color}" stroke-width="1.7" stroke-linecap="round"/>`,
+        water_damage: `<path d="M12 2.5C8 8 6 11.4 6 14.5a6 6 0 0 0 12 0C18 11.4 16 8 12 2.5Z" fill="${dm.color}" fill-opacity="0.35" stroke="${dm.color}" stroke-width="1.6"/>`,
+        air_damage: `<path d="M4 9h10a2.5 2.5 0 1 0-2.5-2.5M3 13h14a2.5 2.5 0 1 1-2.5 2.5M5 17h7" fill="none" stroke="${dm.color}" stroke-width="1.8" stroke-linecap="round"/>`,
+        lightning_damage: `<path d="M13 2 5 13h6l-1 9 9-12h-6V2Z" fill="${dm.color}" fill-opacity="0.4" stroke="${dm.color}" stroke-width="1.5" stroke-linejoin="round"/>`,
+        light_damage: `<circle cx="12" cy="12" r="4.5" fill="${dm.color}" stroke="#fff" stroke-width="1"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="${dm.color}" stroke-width="1.7" stroke-linecap="round"/>`,
+        dark_damage: `<path d="M15.5 4.2A7.8 7.8 0 1 0 19.8 16 6.2 6.2 0 0 1 15.5 4.2Z" fill="${dm.color}" fill-opacity="0.45" stroke="${dm.color}" stroke-width="1.6"/>`
+      };
+      return `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" class="ac-icon" aria-hidden="true">${svgs[id] || svgs.magic}</svg>`;
+    }
+
+    const OVERRIDES = {
+      2967: {
+        solo: { tournament_level_id: "tourney_banana_island" },
+        duo: { tournament_level_id: "tourney_liones_kingdom" }
+      }
+    };
+
+    class RobloxRandom {
+      constructor(seed) {
+        this.MULT = 6364136223846793005n;
+        this.INC = 105n;
+        this.MASK64 = (1n << 64n) - 1n;
+        this.MASK32 = 0xFFFFFFFFn;
+        this.state = 0n;
+        this.nextUint32();
+        this.state = (this.state + BigInt.asUintN(64, BigInt(seed))) & this.MASK64;
+        this.nextUint32();
+      }
+      nextUint32() {
+        const oldstate = this.state;
+        this.state = (oldstate * this.MULT + (this.INC | 1n)) & this.MASK64;
+        const xorshifted = Number((((oldstate >> 18n) ^ oldstate) >> 27n) & this.MASK32);
+        const rot = Number((oldstate >> 59n) & 31n);
+        return ((xorshifted >>> rot) | ((xorshifted << ((-rot) & 31)) >>> 0)) >>> 0;
+      }
+      nextNumber() {
+        const rl = BigInt(this.nextUint32());
+        const rh = BigInt(this.nextUint32());
+        return Number(rl | (rh << 32n)) / 18446744073709551616;
+      }
+      nextInteger(min, max) {
+        if (min > max) [min, max] = [max, min];
+        const range = BigInt(max - min + 1);
+        if (range <= 1n) return min;
+        let x = range * BigInt(this.nextUint32());
+        let l = x & this.MASK32;
+        if (l < range) {
+          const t = ((1n << 32n) - range) % range;
+          while (l < t) {
+            x = range * BigInt(this.nextUint32());
+            l = x & this.MASK32;
+          }
+        }
+        return min + Number(x >> 32n);
+      }
+    }
+
+    function weightedPick(rng, list) {
+      let total = 0;
+      for (const item of list) total += item.weight || 1;
+      let roll = rng.nextNumber() * total;
+      for (const item of list) {
+        roll -= item.weight || 1;
+        if (roll <= 0) return item;
+      }
+      return list[list.length - 1];
+    }
+
+    function canStack(chosen, id) {
+      const cat = MOD_CATEGORIES[id];
+      for (const c of chosen) {
+        if (c === id || MOD_CATEGORIES[c] === cat) return false;
+        const key = c < id ? `${c}|${id}` : `${id}|${c}`;
+        if (MOD_BLOCKED[key]) return false;
+      }
+      return true;
+    }
+
+    function pickModifiers(rng, pool, count) {
+      const chosen = [];
+      for (let i = 0; i < count; i++) {
+        const valid = pool.filter((m) => (m.weight || 1) > 0 && canStack(chosen, m.id));
+        if (!valid.length) break;
+        chosen.push(weightedPick(rng, valid).id);
+      }
+      return chosen;
+    }
+
+    function weekOf(t) { return Math.floor((Math.floor(t) - WEEK_OFFSET) / WEEK_SECONDS); }
+    function weekStart(w) { return w * WEEK_SECONDS + WEEK_OFFSET; }
+    function seasonOf(w) { return w - FIRST_WEEK + 1; }
+    function traitlessMode(w) {
+      if (w < TRAITLESS_FROM_WEEK) return null;
+      return (w - TRAITLESS_FROM_WEEK) % 2 === 0 ? "duo" : "solo";
+    }
+    function levelsOf(w) {
+      return LEVELS.filter((l) => !(l.from_week && l.from_week > w) && !(l.until_week && w > l.until_week));
+    }
+
+    const modeCache = new Map();
+    function makeMode(w, mode) {
+      const key = `${w}:${mode}`;
+      if (modeCache.has(key)) return modeCache.get(key);
+      const rng = new RobloxRandom(w * 7919 + MODE_SALT[mode]);
+      const lvls = levelsOf(w);
+      let level = weightedPick(rng, lvls);
+      if (mode === "duo") {
+        const soloLevel = makeMode(w, "solo").tournament_level_id;
+        for (let i = 0; i < 8; i++) {
+          if (level.id !== soloLevel) break;
+          level = weightedPick(rng, lvls);
+        }
+      }
+      const legacyChallenge = weightedPick(rng, CHALLENGES);
+      const scoreType = weightedPick(rng, SCORE_TYPES).id;
+      const dmg = [...DAMAGE_TYPES];
+      for (let i = dmg.length; i >= 2; i--) {
+        const j = rng.nextInteger(1, i);
+        const tmp = dmg[i - 1];
+        dmg[i - 1] = dmg[j - 1];
+        dmg[j - 1] = tmp;
+      }
+      let idx = 0;
+      const resists = [];
+      for (let i = 0; i < 2; i++) {
+        const t = dmg[idx++];
+        const val = Math.floor(25 + rng.nextNumber() * (200 - 25) + 0.5);
+        resists.push({ type: t, val, multi: 100 / (val + 100) });
+      }
+      const weaks = [];
+      for (let i = 0; i < 2; i++) {
+        const t = dmg[idx++];
+        const amp = Math.floor((0.5 + rng.nextNumber() * (2 - 0.5)) * 100 + 0.5) / 100;
+        const multi = Math.floor((1 + amp) * 100 + 0.5) / 100;
+        weaks.push({ type: t, amp, multi });
+      }
+
+      let modifiers = null;
+      if (w >= MODIFIERS_FROM_WEEK) {
+        const modRng = new RobloxRandom(w * 104729 + MODE_SALT[mode] * 7);
+        const picked = pickModifiers(modRng, MODIFIER_POOL, 2);
+        if (picked.length > 0) modifiers = picked;
+      }
+
+      let hp = modifiers ? (BASE_HP_V2[scoreType] || 1) : ((BASE_HP[scoreType] || 1) * (legacyChallenge.hp || 1));
+      if (mode === "duo") hp *= DUO_HP;
+      if (modifiers && w >= FIRST_WEEK) hp *= Math.pow(WEEKLY_HP_GROWTH, w - FIRST_WEEK);
+      const traitless = modifiers !== null && traitlessMode(w) === mode;
+      if (traitless) hp *= TRAITLESS_HP;
+
+      const out = {
+        mode,
+        tournament_level_id: level.id,
+        modifiers: modifiers || [legacyChallenge.id],
+        traitless,
+        score_type: scoreType,
+        hp_multi: Math.floor(hp * 100 + 0.5) / 100,
+        resists,
+        weaks
+      };
+      if (OVERRIDES[w] && OVERRIDES[w][mode]) {
+        Object.assign(out, OVERRIDES[w][mode]);
+      }
+      modeCache.set(key, out);
+      return out;
+    }
+
+    let modeFilter = "both";
+    let traitlessOnly = false;
+    let useUTC = false;
+
+    function fmtDHM(sec) {
+      sec = Math.max(0, Math.floor(sec));
+      const d = Math.floor(sec / 86400);
+      const h = Math.floor((sec % 86400) / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = sec % 60;
+      if (d > 0) return `${d}d ${String(h).padStart(2, "0")}h ${String(m).padStart(2, "0")}m`;
+      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    }
+
+    function fmtDate(sec) {
+      const d = new Date(sec * 1000);
+      return d.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: useUTC ? "UTC" : undefined
+      }) + (useUTC ? " UTC" : "");
+    }
+
+    function renderModeBlock(m, title) {
+      const modsHtml = m.modifiers.map((id) => {
+        const meta = MOD_META[id] || { name: id, desc: "" };
+        return `<div class="sub-box p-2"><div class="font-semibold text-xs">${meta.name}</div><div class="text-[11px]" style="color:var(--muted);">${meta.desc}</div></div>`;
+      }).join("");
+      const resHtml = m.resists.map((r) => {
+        const dm = DMG_META[r.type] || { name: r.type, color: "#fff" };
+        return `<span class="tag gap-1" style="color:${dm.color};">${dmgIconHtml(r.type, 13)}<span>${dm.name} -${Math.round((1 - r.multi) * 100)}%</span></span>`;
+      }).join("");
+      const weakHtml = m.weaks.map((w) => {
+        const dm = DMG_META[w.type] || { name: w.type, color: "#fff" };
+        return `<span class="tag gap-1" style="color:${dm.color};">${dmgIconHtml(w.type, 13)}<span>${dm.name} ${w.multi.toFixed(2)}x</span></span>`;
+      }).join("");
+
+      return `
+        <div class="sub-box p-3.5 space-y-2.5">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-sm">${title}</span>
+              ${m.traitless ? `<span class="tag" style="color:#ff8a80;border-color:rgba(255,138,128,0.4);">Traitless</span>` : `<span class="tag" style="color:#6ee787;border-color:rgba(110,231,135,0.35);">Traits On</span>`}
+            </div>
+            <span class="tag font-mono">${m.score_type === "damage" ? "Score: Damage" : "Score: Kills"} &bull; ${m.hp_multi}x HP</span>
+          </div>
+          <div class="text-base font-bold break-words">${LEVEL_NAMES[m.tournament_level_id] || m.tournament_level_id} <span class="text-xs font-mono font-normal break-all" style="color:var(--faint);">(${m.tournament_level_id})</span></div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">${modsHtml}</div>
+          <div class="space-y-1.5 text-xs">
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="font-mono text-[11px] w-14 shrink-0" style="color:var(--faint);">Weak:</span>${weakHtml}
+            </div>
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="font-mono text-[11px] w-14 shrink-0" style="color:var(--faint);">Resist:</span>${resHtml}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAll() {
+      const nowSec = Math.floor(Date.now() / 1000);
+      const curW = weekOf(nowSec);
+      const season = seasonOf(curW);
+      const resetLeft = weekStart(curW + 1) - nowSec;
+
+      document.getElementById("nav-season").textContent = `S${season} (V2)`;
+      document.getElementById("nav-season-m").textContent = `S${season} (V2)`;
+      document.getElementById("nav-reset").textContent = fmtDHM(resetLeft);
+      document.getElementById("nav-reset-m").textContent = fmtDHM(resetLeft);
+
+      const curSolo = makeMode(curW, "solo");
+      const curDuo = makeMode(curW, "duo");
+      document.getElementById("current-cards").innerHTML = `
+        <article class="card p-4 sm:p-5 space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <span class="tag" style="color:#6ee787;border-color:rgba(110,231,135,0.4);">LIVE &bull; SEASON ${season}</span>
+            <span class="text-xs font-mono" style="color:var(--faint);">Week #${curW}</span>
+          </div>
+          ${renderModeBlock(curSolo, "Solo Tournament (1P · 20/bracket)")}
+        </article>
+        <article class="card p-4 sm:p-5 space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <span class="tag" style="color:#7cc4ff;border-color:rgba(124,196,255,0.4);">LIVE &bull; SEASON ${season}</span>
+            <span class="text-xs font-mono" style="color:var(--faint);">Week #${curW}</span>
+          </div>
+          ${renderModeBlock(curDuo, "Duo Tournament (2P · 10/bracket)")}
+        </article>
+      `;
+
+      const rows = [];
+      for (let off = 0; off <= WEEKS_AHEAD; off++) {
+        const w = curW + off;
+        const s = seasonOf(w);
+        const solo = makeMode(w, "solo");
+        const duo = makeMode(w, "duo");
+        const showSolo = (modeFilter === "both" || modeFilter === "solo") && (!traitlessOnly || solo.traitless);
+        const showDuo = (modeFilter === "both" || modeFilter === "duo") && (!traitlessOnly || duo.traitless);
+        if (!showSolo && !showDuo) continue;
+
+        rows.push(`
+          <article class="card p-4 sm:p-5 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b">
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-base">Tournament ${s} (V2)</span>
+                ${off === 0 ? `<span class="tag" style="color:#6ee787;border-color:rgba(110,231,135,0.4);">Current</span>` : `<span class="tag">+${off}w</span>`}
+              </div>
+              <div class="text-xs font-mono" style="color:var(--muted);">${fmtDate(weekStart(w))} &rarr; ${fmtDate(weekStart(w + 1))}</div>
+            </div>
+            <div class="grid grid-cols-1 ${showSolo && showDuo ? "lg:grid-cols-2" : ""} gap-3">
+              ${showSolo ? renderModeBlock(solo, "Solo") : ""}
+              ${showDuo ? renderModeBlock(duo, "Duo") : ""}
+            </div>
+          </article>
+        `);
+      }
+
+      document.getElementById("weeks-list").innerHTML = rows.length
+        ? rows.join("")
+        : `<div class="card p-8 text-center text-sm" style="color:var(--muted);">No weeks match your current filter.</div>`;
+    }
+
+    document.querySelectorAll(".mode-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        modeFilter = btn.dataset.mode;
+        document.querySelectorAll(".mode-btn").forEach((b) => b.classList.toggle("primary", b.dataset.mode === modeFilter));
+        renderAll();
+      });
+    });
+
+    document.getElementById("traitless-only").addEventListener("click", (e) => {
+      traitlessOnly = !traitlessOnly;
+      e.target.classList.toggle("primary", traitlessOnly);
+      renderAll();
+    });
+
+    document.getElementById("tz-toggle").addEventListener("click", (e) => {
+      useUTC = !useUTC;
+      e.target.textContent = useUTC ? "Time: UTC" : "Time: Local";
+      renderAll();
+    });
+
+    renderAll();
+    setInterval(() => {
+      const nowSec = Math.floor(Date.now() / 1000);
+      const resetLeft = weekStart(weekOf(nowSec) + 1) - nowSec;
+      document.getElementById("nav-reset").textContent = fmtDHM(resetLeft);
+      document.getElementById("nav-reset-m").textContent = fmtDHM(resetLeft);
+    }, 1000);
+  </script>
+</body>
+</html>

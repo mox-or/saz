@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Anniversary Constellations — Anime Crusaders</title>
+  <meta name="theme-color" content="#0f0f0f" />
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap">
+      <div class="nav-left">
+        <a class="brand" href="./index.html">Anime Crusaders</a>
+        <nav class="nav-links" aria-label="Primary">
+          <a href="./index.html">Home</a>
+          <a href="./constellation.html" aria-current="page">Constellations</a>
+          <a href="./minigame.html">Minigames</a>
+          <a href="./shops.html">Shops</a>
+          <a href="./tower.html">Tower</a>
+          <a href="./tournament.html">Tournaments</a>
+          <a href="./reroll.html">Rerolls</a>
+        </nav>
+      </div>
+      <div class="nav-meta">
+        <span>Hour <strong id="hour-index">------</strong></span>
+        <span style="color:#454545;">|</span>
+        <span>Next <strong id="hour-countdown">--:--</strong></span>
+      </div>
+      <button type="button" class="nav-toggle" aria-expanded="false" aria-label="Toggle navigation" onclick="var n=this.closest('.nav');var o=n.classList.toggle('is-open');this.setAttribute('aria-expanded',o);this.textContent=o?'Close':'Menu';">Menu</button>
+    </div>
+  </header>
+
+  <main class="wrap py-7 sm:py-10 space-y-6 sm:space-y-8">
+    <section class="hero-dots pb-6 border-b">
+      <h1 class="text-2xl sm:text-4xl font-bold tracking-tight">Anniversary Constellations</h1>
+      <p class="text-sm sm:text-base mt-2 max-w-2xl" style="color:var(--muted);">
+        Deterministic hourly schedule from <code>CONSTELLATION_EPOCH_HOUR = 498648</code> with 2-streak anti-repeat protection.
+      </p>
+
+      <div class="card p-3 mt-4 flex items-center justify-between text-xs md:hidden">
+        <div>
+          <div style="color:var(--faint);">Hour Index</div>
+          <div id="hour-index-m" class="font-mono font-semibold tabular-nums mt-0.5">------</div>
+        </div>
+        <div class="text-right">
+          <div style="color:var(--faint);">Next Rotation</div>
+          <div id="hour-countdown-m" class="font-mono font-semibold tabular-nums mt-0.5">--:--</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div id="now-card" class="lg:col-span-2 card p-4 sm:p-5"></div>
+      <div id="next-card" class="card p-4 sm:p-5 flex flex-col justify-between"></div>
+    </section>
+
+    <section class="card p-4 sm:p-5 space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 class="text-base font-semibold">Constellation Pool &amp; Odds</h2>
+          <p class="text-xs mt-0.5" style="color:var(--muted);">Tap constellations to filter the 7-day forecast below.</p>
+        </div>
+        <div id="next-supernova-pill" class="tag"></div>
+      </div>
+      <div id="pool-grid" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2"></div>
+    </section>
+
+    <section class="space-y-4">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-2" id="filter-bar">
+          <button data-filter="all" class="filter-btn button small primary">All (168h)</button>
+        </div>
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full md:w-auto">
+          <button id="tz-toggle" class="button small w-full sm:w-auto shrink-0">Time: Local</button>
+          <select id="day-jump" class="select w-full sm:w-auto min-w-0" aria-label="Select forecast day">
+            <option value="all">View: All 7 Days</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="forecast-days" class="space-y-4"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <span>Formula: <code>Random.new((hour * 7919 + 104729) % 2147483647)</code> from epoch <code>498648</code></span>
+      <span class="footer-links">
+        <a href="./index.html">Home</a>
+        <a href="./constellation.html">Constellations</a>
+        <a href="./minigame.html">Minigames</a>
+        <a href="./shops.html">Shops</a>
+        <a href="./tower.html">Tower</a>
+        <a href="./tournament.html">Tournaments</a>
+        <a href="./reroll.html">Rerolls</a>
+      </span>
+    </div>
+  </footer>
+
+  <script>
+    const EPOCH_HOUR = 498648;
+
+    const CONSTELLATIONS = [
+      {
+        id: "anvil",
+        name: "The Anvil",
+        chance: 20,
+        color: "rgb(150, 196, 255)",
+        rewards: [{ item: "reroll_stat_all", label: "Stat Cubes", amount: 2 }],
+        shortLabel: "2 Stat Cubes",
+        effectText: "2 Stat Cubes on clear"
+      },
+      {
+        id: "diamond",
+        name: "The Diamond",
+        chance: 20,
+        color: "rgb(120, 236, 255)",
+        rewards: [{ item: "reroll_stat_specific", label: "Perfect Stat Cubes", amount: 2 }],
+        shortLabel: "2 Perfect Stat Cubes",
+        effectText: "2 Perfect Stat Cubes on clear"
+      },
+      {
+        id: "orb",
+        name: "The Orb",
+        chance: 15,
+        color: "rgb(110, 255, 170)",
+        rewards: [{ item: "relic_reroll", label: "Relic Cubes", amount: 2 }],
+        shortLabel: "2 Relic Cubes",
+        effectText: "2 Relic Cubes on clear"
+      },
+      {
+        id: "storm",
+        name: "The Storm",
+        chance: 10,
+        color: "rgb(196, 130, 255)",
+        rewards: [{ item: "cursetoken", label: "Curse Tokens", amount: 2 }],
+        shortLabel: "2 Curse Tokens",
+        effectText: "2 Curse Tokens on clear"
+      },
+      {
+        id: "comet",
+        name: "The Comet",
+        chance: 10,
+        color: "rgb(255, 150, 214)",
+        rewards: [{ item: "star_remnant", label: "Trait Remnants", amount: 4 }],
+        shortLabel: "4 Trait Remnants",
+        effectText: "4 Trait Remnants on clear"
+      },
+      {
+        id: "crown",
+        name: "The Crown",
+        chance: 10,
+        star_mult: 2,
+        color: "rgb(255, 210, 90)",
+        rewards: [],
+        shortLabel: "200% Stars (x2)",
+        effectText: "200% Anniversary Stars (x2 all run)"
+      },
+      {
+        id: "meteor",
+        name: "The Meteor",
+        chance: 10,
+        color: "rgb(255, 128, 84)",
+        rewards: [{ item: "limit_reroll", label: "Limit Breaker", amount: 1, chance: 0.5 }],
+        shortLabel: "50% Limit Breaker",
+        effectText: "50% chance of a Limit Breaker on clear"
+      },
+      {
+        id: "supernova",
+        name: "Supernova",
+        chance: 5,
+        star_mult: 5,
+        announce: true,
+        color: "rgb(255, 240, 196)",
+        rewards: [],
+        shortLabel: "500% Stars (x5)",
+        effectText: "500% Anniversary Stars (x5 all run) • Global Announce"
+      }
+    ];
+
+    const BY_ID = Object.fromEntries(CONSTELLATIONS.map((c) => [c.id, c]));
+
+    function constellationDot(color, sizeClass) {
+      return `<span class="${sizeClass || "w-2 h-2"} rounded-full shrink-0 inline-block" style="background:${color}"></span>`;
+    }
+
+    class RobloxRandom {
+      constructor(seed) {
+        this.MULT = 6364136223846793005n;
+        this.INC = 105n;
+        this.MASK64 = (1n << 64n) - 1n;
+        this.MASK32 = 0xFFFFFFFFn;
+        this.state = 0n;
+        this.nextUint32();
+        this.state = (this.state + BigInt.asUintN(64, BigInt(seed))) & this.MASK64;
+        this.nextUint32();
+      }
+
+      nextUint32() {
+        const oldstate = this.state;
+        this.state = (oldstate * this.MULT + (this.INC | 1n)) & this.MASK64;
+        const xorshifted = Number((((oldstate >> 18n) ^ oldstate) >> 27n) & this.MASK32);
+        const rot = Number((oldstate >> 59n) & 31n);
+        return ((xorshifted >>> rot) | ((xorshifted << ((-rot) & 31)) >>> 0)) >>> 0;
+      }
+
+      nextNumber() {
+        const rl = BigInt(this.nextUint32());
+        const rh = BigInt(this.nextUint32());
+        return Number(rl | (rh << 32n)) / 18446744073709551616;
+      }
+    }
+
+    function drawConstellation(hour, bannedId) {
+      const seed = (hour * 7919 + 104729) % 2147483647;
+      const rng = new RobloxRandom(seed);
+      let total = 0;
+      for (const c of CONSTELLATIONS) {
+        if (c.id !== bannedId) total += c.chance;
+      }
+      let roll = rng.nextNumber() * total;
+      let fallback = null;
+      for (const c of CONSTELLATIONS) {
+        if (c.id !== bannedId) {
+          fallback = c.id;
+          roll -= c.chance;
+          if (roll < 0) return c.id;
+        }
+      }
+      return fallback;
+    }
+
+    const hourCache = new Map();
+    let maxCachedHour = EPOCH_HOUR - 1;
+
+    function constellationAt(hour) {
+      const h = Math.floor(hour);
+      if (h < EPOCH_HOUR) {
+        return BY_ID[drawConstellation(h, null)];
+      }
+      while (maxCachedHour < h) {
+        const nextH = maxCachedHour + 1;
+        const prev1 = hourCache.get(nextH - 1) || null;
+        const prev2 = hourCache.get(nextH - 2) || null;
+        const banned = (prev1 !== null && prev1 === prev2) ? prev1 : null;
+        hourCache.set(nextH, drawConstellation(nextH, banned));
+        maxCachedHour = nextH;
+      }
+      return BY_ID[hourCache.get(h)];
+    }
+
+    const selectedFilters = new Set();
+    let useUTC = false;
+    let selectedDay = "all";
+    let lastRenderedHour = null;
+
+    function fmtClock(sec) {
+      sec = Math.max(0, Math.floor(sec));
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    }
+
+    function fmtHourTime(hourIdx) {
+      const d = new Date(hourIdx * 3600 * 1000);
+      return useUTC
+        ? `${String(d.getUTCHours()).padStart(2, "0")}:00`
+        : `${String(d.getHours()).padStart(2, "0")}:00`;
+    }
+
+    function fmtDayKey(hourIdx) {
+      const d = new Date(hourIdx * 3600 * 1000);
+      if (useUTC) return d.toISOString().slice(0, 10);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    }
+
+    function fmtDayLabel(dayKey) {
+      const [y, m, d] = dayKey.split("-").map(Number);
+      const dateObj = useUTC ? new Date(Date.UTC(y, m - 1, d)) : new Date(y, m - 1, d);
+      return dateObj.toLocaleDateString(undefined, {
+        weekday: "long",
+        month: "short",
+        day: "numeric",
+        timeZone: useUTC ? "UTC" : undefined
+      });
+    }
+
+    function fmtRelativeHours(deltaHours) {
+      if (deltaHours === 0) return "Active now";
+      if (deltaHours < 24) return `in ${deltaHours}h`;
+      const days = Math.floor(deltaHours / 24);
+      const remH = deltaHours % 24;
+      return remH === 0 ? `in ${days}d` : `in ${days}d ${remH}h`;
+    }
+
+    function toggleFilter(id) {
+      if (id === "all") {
+        selectedFilters.clear();
+      } else if (selectedFilters.has(id)) {
+        selectedFilters.delete(id);
+      } else {
+        selectedFilters.add(id);
+      }
+      syncFilterStyles();
+      renderForecast(Math.floor(Date.now() / 1000 / 3600));
+    }
+
+    function buildFilterButtons() {
+      const bar = document.getElementById("filter-bar");
+      const baseBtns = `<button data-filter="all" class="filter-btn button small primary">All (168h)</button>`;
+      const itemBtns = CONSTELLATIONS.map((c) => `
+        <button data-filter="${c.id}" class="filter-btn button small">
+          ${constellationDot(c.color, "w-2 h-2")}
+          <span>${c.name}</span>
+        </button>
+      `).join("");
+      bar.innerHTML = baseBtns + itemBtns;
+
+      bar.querySelectorAll(".filter-btn").forEach((btn) => {
+        btn.addEventListener("click", () => toggleFilter(btn.dataset.filter));
+      });
+      syncFilterStyles();
+    }
+
+    function syncFilterStyles() {
+      document.querySelectorAll(".filter-btn").forEach((btn) => {
+        const f = btn.dataset.filter;
+        const active = f === "all" ? selectedFilters.size === 0 : selectedFilters.has(f);
+        btn.className = active ? "filter-btn button small primary" : "filter-btn button small";
+      });
+    }
+
+    function renderHero(nowHour, secLeft) {
+      const current = constellationAt(nowHour);
+      const next = constellationAt(nowHour + 1);
+      const pct = Math.min(100, Math.max(0, ((3600 - secLeft) / 3600) * 100));
+
+      document.getElementById("now-card").innerHTML = `
+        <div class="space-y-4">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 text-xs font-mono" style="color:var(--faint);">
+                ${constellationDot(current.color, "w-2 h-2")}
+                <span>CURRENT &bull; ${fmtHourTime(nowHour)} ${useUTC ? "UTC" : "Local"}</span>
+              </div>
+              <h2 class="text-2xl sm:text-3xl font-bold mt-1" style="color:${current.color}">${current.name}</h2>
+              <p class="text-sm mt-1" style="color:var(--muted);">${current.effectText}</p>
+            </div>
+            <div class="text-right">
+              <span class="tag">${current.chance}% weight</span>
+              ${current.announce ? `<div class="text-xs font-mono mt-1.5 text-white">Global Announce</div>` : ""}
+            </div>
+          </div>
+          <div class="space-y-1.5">
+            <div class="flex justify-between text-xs" style="color:var(--faint);">
+              <span>Hour progress</span>
+              <span id="hero-cd-text" class="font-mono tabular-nums text-white">${fmtClock(secLeft)} left</span>
+            </div>
+            <div class="progress-track">
+              <div id="hero-progress" class="h-full bg-white transition-all duration-500" style="width:${pct.toFixed(1)}%;"></div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById("next-card").innerHTML = `
+        <div>
+          <div class="text-xs font-mono" style="color:var(--faint);">
+            NEXT &bull; ${fmtHourTime(nowHour + 1)} ${useUTC ? "UTC" : "Local"}
+          </div>
+          <div class="flex items-center gap-2 mt-1.5">
+            ${constellationDot(next.color, "w-2 h-2")}
+            <h3 class="text-xl font-bold truncate" style="color:${next.color}">${next.name}</h3>
+          </div>
+          <p class="text-xs mt-1.5" style="color:var(--muted);">${next.effectText}</p>
+        </div>
+        <div class="flex items-center justify-between text-xs pt-3 mt-4 border-t">
+          <span style="color:var(--faint);">Roll Weight</span>
+          <span class="font-mono font-semibold">${next.chance}%</span>
+        </div>
+      `;
+    }
+
+    function renderPoolAndCounts(nowHour) {
+      const counts = Object.fromEntries(CONSTELLATIONS.map((c) => [c.id, 0]));
+      let nextSupernovaHour = null;
+
+      for (let i = 0; i < 168; i++) {
+        const h = nowHour + i;
+        const c = constellationAt(h);
+        counts[c.id]++;
+        if (i > 0 && c.id === "supernova" && nextSupernovaHour === null) {
+          nextSupernovaHour = h;
+        }
+      }
+
+      const snPill = document.getElementById("next-supernova-pill");
+      if (nextSupernovaHour !== null) {
+        const delta = nextSupernovaHour - nowHour;
+        snPill.innerHTML = `<span style="color:var(--faint);margin-right:4px;">Next Supernova:</span> <strong style="color:${BY_ID.supernova.color};margin-right:4px;">${fmtDayLabel(fmtDayKey(nextSupernovaHour)).split(",")[0]} ${fmtHourTime(nextSupernovaHour)}</strong> <span style="color:var(--faint);">(${fmtRelativeHours(delta)})</span>`;
+      } else {
+        snPill.textContent = "No Supernova in next 168h";
+      }
+
+      const poolGrid = document.getElementById("pool-grid");
+      poolGrid.innerHTML = CONSTELLATIONS.map((c) => {
+        const isSelected = selectedFilters.has(c.id);
+        return `
+          <button data-pool-id="${c.id}" class="text-left sub-box p-2.5 flex flex-col justify-between gap-1.5 transition cursor-pointer" style="${isSelected ? "border-color:#ffffff;background:#1d1d1d;" : ""}">
+            <div class="flex items-center justify-between gap-1 w-full">
+              ${constellationDot(c.color, "w-2 h-2")}
+              <span class="text-xs font-mono" style="color:var(--faint);">${c.chance}%</span>
+            </div>
+            <div>
+              <div class="text-xs font-semibold truncate" style="color:${c.color}">${c.name}</div>
+              <div class="text-xs truncate mt-0.5" style="color:var(--muted);">${c.shortLabel}</div>
+            </div>
+            <div class="text-xs font-mono pt-1 border-t w-full" style="color:var(--faint);">
+              7d: <span class="text-white font-semibold">${counts[c.id]}h</span>
+            </div>
+          </button>
+        `;
+      }).join("");
+
+      poolGrid.querySelectorAll("[data-pool-id]").forEach((btn) => {
+        btn.addEventListener("click", () => toggleFilter(btn.dataset.poolId));
+      });
+    }
+
+    function matchesFilter(c) {
+      if (selectedFilters.size === 0) return true;
+      return selectedFilters.has(c.id);
+    }
+
+    function renderForecast(nowHour) {
+      renderPoolAndCounts(nowHour);
+
+      const dayGroups = [];
+      const dayMap = new Map();
+
+      for (let i = 0; i < 168; i++) {
+        const h = nowHour + i;
+        const c = constellationAt(h);
+        const key = fmtDayKey(h);
+        if (!dayMap.has(key)) {
+          const entry = { key, label: fmtDayLabel(key), slots: [] };
+          dayMap.set(key, entry);
+          dayGroups.push(entry);
+        }
+        dayMap.get(key).slots.push({ hourIdx: h, offset: i, c });
+      }
+
+      const jump = document.getElementById("day-jump");
+      const prevVal = selectedDay;
+      jump.innerHTML = `<option value="all">View: All ${dayGroups.length} Days (168h)</option>` +
+        dayGroups.map((d, idx) => `<option value="${d.key}">${idx === 0 ? "Today — " : ""}${d.label} (${d.slots.length}h)</option>`).join("");
+      if (prevVal !== "all" && dayMap.has(prevVal)) {
+        jump.value = prevVal;
+      } else {
+        selectedDay = "all";
+        jump.value = "all";
+      }
+
+      const visibleDays = selectedDay === "all" ? dayGroups : dayGroups.filter((d) => d.key === selectedDay);
+      const container = document.getElementById("forecast-days");
+
+      container.innerHTML = visibleDays.map((day) => {
+        const visibleSlots = day.slots.filter((s) => matchesFilter(s.c));
+        const snCount = day.slots.filter((s) => s.c.id === "supernova").length;
+        const crownCount = day.slots.filter((s) => s.c.id === "crown").length;
+
+        return `
+          <div class="card p-4 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b pb-2.5">
+              <div class="flex items-center gap-2.5">
+                <span class="text-base font-semibold">${day.label}</span>
+                ${day.slots[0].offset === 0 ? `<span class="tag">Today</span>` : ""}
+                <span class="text-xs font-mono" style="color:var(--faint);">${day.key}</span>
+              </div>
+              <div class="flex items-center gap-2 text-xs">
+                ${snCount > 0 ? `<span class="tag" style="color:${BY_ID.supernova.color};">${snCount}x Supernova</span>` : ""}
+                ${crownCount > 0 ? `<span class="tag" style="color:${BY_ID.crown.color};">${crownCount}x Crown</span>` : ""}
+                <span class="font-mono" style="color:var(--faint);">${visibleSlots.length}/${day.slots.length}h</span>
+              </div>
+            </div>
+            ${visibleSlots.length === 0 ? `
+              <div class="text-xs py-2" style="color:var(--faint);">No hours match the selected constellation filter on this day.</div>
+            ` : `
+              <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                ${visibleSlots.map((s) => {
+                  const isNow = s.offset === 0;
+                  return `
+                    <div title="${s.c.name} — ${s.c.effectText}" class="sub-box p-2.5 flex flex-col justify-between gap-1" style="${isNow ? "border-color:#ffffff;" : ""}">
+                      <div class="flex items-center justify-between gap-1">
+                        <span class="text-xs font-mono font-semibold">${fmtHourTime(s.hourIdx)}</span>
+                        <span class="text-xs font-mono" style="color:${isNow ? "#ffffff" : "var(--faint)"};">${isNow ? "NOW" : `+${s.offset}h`}</span>
+                      </div>
+                      <div class="flex items-center gap-1.5">
+                        ${constellationDot(s.c.color, "w-1.5 h-1.5")}
+                        <span class="text-xs font-medium leading-tight truncate">${s.c.name}</span>
+                      </div>
+                    </div>
+                  `;
+                }).join("")}
+              </div>
+            `}
+          </div>
+        `;
+      }).join("");
+    }
+
+    function tick() {
+      const nowSec = Math.floor(Date.now() / 1000);
+      const nowHour = Math.floor(nowSec / 3600);
+      const secLeft = (nowHour + 1) * 3600 - nowSec;
+
+      document.getElementById("hour-index").textContent = `#${nowHour}`;
+      document.getElementById("hour-countdown").textContent = fmtClock(secLeft);
+      document.getElementById("hour-index-m").textContent = `#${nowHour}`;
+      document.getElementById("hour-countdown-m").textContent = fmtClock(secLeft);
+
+      if (lastRenderedHour !== nowHour) {
+        lastRenderedHour = nowHour;
+        renderHero(nowHour, secLeft);
+        renderForecast(nowHour);
+      } else {
+        const heroCd = document.getElementById("hero-cd-text");
+        const heroProg = document.getElementById("hero-progress");
+        if (heroCd) heroCd.textContent = `${fmtClock(secLeft)} left`;
+        if (heroProg) {
+          const pct = Math.min(100, Math.max(0, ((3600 - secLeft) / 3600) * 100));
+          heroProg.style.width = `${pct.toFixed(1)}%`;
+        }
+      }
+    }
+
+    document.getElementById("tz-toggle").addEventListener("click", (e) => {
+      useUTC = !useUTC;
+      e.target.textContent = useUTC ? "Time: UTC" : "Time: Local";
+      lastRenderedHour = null;
+      tick();
+    });
+
+    document.getElementById("day-jump").addEventListener("change", (e) => {
+      selectedDay = e.target.value;
+      renderForecast(Math.floor(Date.now() / 1000 / 3600));
+    });
+
+    buildFilterButtons();
+    tick();
+    setInterval(tick, 1000);
+  </script>
+</body>
+</html>

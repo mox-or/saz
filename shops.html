@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shops &amp; Restocks — Anime Crusaders</title>
+  <meta name="theme-color" content="#0f0f0f" />
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      font-weight: 600;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    .status-restock {
+      color: #6ee787;
+      background-color: rgba(110, 231, 135, 0.1);
+      border-color: rgba(110, 231, 135, 0.35);
+    }
+    .status-never {
+      color: #ff8a80;
+      background-color: rgba(255, 138, 128, 0.1);
+      border-color: rgba(255, 138, 128, 0.35);
+    }
+    .status-unlimited {
+      color: #7cc4ff;
+      background-color: rgba(124, 196, 255, 0.1);
+      border-color: rgba(124, 196, 255, 0.35);
+    }
+    .status-special {
+      color: #f5c542;
+      background-color: rgba(245, 197, 66, 0.1);
+      border-color: rgba(245, 197, 66, 0.35);
+    }
+    .item-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px 10px;
+      padding: 6px 9px;
+      border-radius: 3px;
+      background-color: var(--bg-raised);
+      border: 1px solid var(--border);
+      font-size: 0.78rem;
+    }
+    .item-row-name {
+      color: var(--text);
+      font-weight: 500;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    .item-row-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+      margin-left: auto;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap">
+      <div class="nav-left">
+        <a class="brand" href="./index.html">Anime Crusaders</a>
+        <nav class="nav-links" aria-label="Primary">
+          <a href="./index.html">Home</a>
+          <a href="./constellation.html">Constellations</a>
+          <a href="./minigame.html">Minigames</a>
+          <a href="./shops.html" aria-current="page">Shops</a>
+          <a href="./tower.html">Tower</a>
+          <a href="./tournament.html">Tournaments</a>
+          <a href="./reroll.html">Rerolls</a>
+        </nav>
+      </div>
+      <div class="nav-meta">
+        <span>UTC <strong id="utc-clock">--:--:--</strong></span>
+        <span style="color:#454545;">|</span>
+        <span>00:00 UTC <strong id="utc-reset">--h --m --s</strong></span>
+      </div>
+      <button type="button" class="nav-toggle" aria-expanded="false" aria-label="Toggle navigation" onclick="var n=this.closest('.nav');var o=n.classList.toggle('is-open');this.setAttribute('aria-expanded',o);this.textContent=o?'Close':'Menu';">Menu</button>
+    </div>
+  </header>
+
+  <main class="wrap py-7 sm:py-10 space-y-6 sm:space-y-8">
+    <section class="hero-dots pb-6 border-b">
+      <h1 class="text-2xl sm:text-4xl font-bold tracking-tight">Shop Restock Tracker</h1>
+      <p class="text-sm sm:text-base mt-2 max-w-3xl" style="color:var(--muted);">
+        Every shop in Anime Crusaders verified from <code>ReplicatedStorage.Framework.Data</code> and client shop UIs — showing which shops restock, which are one-time limited stock, and which have unlimited purchases.
+      </p>
+
+      <div class="card p-3 mt-4 flex items-center justify-between text-xs md:hidden">
+        <div>
+          <div style="color:var(--faint);">UTC Time</div>
+          <div id="utc-clock-m" class="font-mono font-semibold tabular-nums mt-0.5">--:--:--</div>
+        </div>
+        <div class="text-right">
+          <div style="color:var(--faint);">Next 00:00 UTC</div>
+          <div id="utc-reset-m" class="font-mono font-semibold tabular-nums mt-0.5">--h --m --s</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div class="card p-3.5 sm:p-4">
+        <div class="text-xs" style="color:var(--muted);">Total Shops</div>
+        <div id="stat-total" class="text-xl sm:text-2xl font-bold mt-1 tabular-nums">--</div>
+        <div class="text-xs mt-1" style="color:var(--faint);">Lobby, Raid, Event &amp; Mode</div>
+      </div>
+      <div class="card p-3.5 sm:p-4">
+        <div class="text-xs" style="color:var(--muted);">Restocks / Rotates</div>
+        <div id="stat-restocks" class="text-xl sm:text-2xl font-bold mt-1 tabular-nums" style="color:#6ee787;">--</div>
+        <div class="text-xs mt-1" style="color:var(--faint);">Daily, 90m Visit, Bi-Weekly</div>
+      </div>
+      <div class="card p-3.5 sm:p-4">
+        <div class="text-xs" style="color:var(--muted);">Never Restocks</div>
+        <div id="stat-never" class="text-xl sm:text-2xl font-bold mt-1 tabular-nums" style="color:#ff8a80;">--</div>
+        <div class="text-xs mt-1" style="color:var(--faint);">One-time stock per key</div>
+      </div>
+      <div class="card p-3.5 sm:p-4">
+        <div class="text-xs" style="color:var(--muted);">Unlimited / Per-Update</div>
+        <div id="stat-other" class="text-xl sm:text-2xl font-bold mt-1 tabular-nums" style="color:#7cc4ff;">--</div>
+        <div class="text-xs mt-1" style="color:var(--faint);">No stock cap or v10.5 cap</div>
+      </div>
+    </section>
+
+    <section class="card p-4 sm:p-5 space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h2 class="text-base font-semibold">Quick Restock Summary</h2>
+        <span class="tag">Verified in client &amp; Data modules</span>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+        <div class="sub-box p-3 space-y-1.5">
+          <div class="font-semibold" style="color:#6ee787;">Restocks on a Schedule</div>
+          <ul class="space-y-1" style="color:var(--muted);">
+            <li><strong>Gold Shop:</strong> Every 24h (<code>86,400s</code>)</li>
+            <li><strong>Travelling Merchant:</strong> Every visit (60m stay / 30m away)</li>
+            <li><strong>Makima Boss Rush:</strong> Bi-Weekly (<code>BIWEEKLY_SEED</code>)</li>
+            <li><strong>Aizen Boss Rush:</strong> Bi-Weekly (<code>BIWEEKLY_SEED</code>)</li>
+          </ul>
+        </div>
+        <div class="sub-box p-3 space-y-1.5">
+          <div class="font-semibold" style="color:#ff8a80;">Never Restocks (One-Time Stock)</div>
+          <ul class="space-y-1" style="color:var(--muted);">
+            <li><strong>Anniversary Shop:</strong> Static key (<code>Anniversary_Shop</code>)</li>
+            <li><strong>Kitchen Madness (Meliodas):</strong> Static key (<code>Cooking_Shop_1</code>)</li>
+            <li><strong>Einz's Shop (Ainz):</strong> Static key (<code>Daily</code> disabled)</li>
+            <li><strong>All 4 Raid Shops:</strong> Static <code>&lt;Raid&gt;_SHOP</code> key</li>
+            <li><strong>Legacy Event Shops:</strong> FrogHunt, HxHHunt, ChristmasP1</li>
+          </ul>
+        </div>
+        <div class="sub-box p-3 space-y-1.5">
+          <div class="font-semibold" style="color:#7cc4ff;">Unlimited / Update / Special</div>
+          <ul class="space-y-1" style="color:var(--muted);">
+            <li><strong>Navi's Event Shop:</strong> Unlimited stock (<code>inf</code>)</li>
+            <li><strong>Flame's Shop (Ace Portal):</strong> Unlimited purchases</li>
+            <li><strong>Kitchen Food Pantry:</strong> Unlimited ingredients</li>
+            <li><strong>Blank Token Exchange:</strong> 1x per unit per major update (<code>v10.5</code>)</li>
+            <li><strong>Emote Shop (Trophies):</strong> Server interval; 1x permanent unlock</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="space-y-4">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-2" id="filter-tabs">
+          <button data-filter="all" class="filter-btn button small primary">All</button>
+          <button data-filter="restocks" class="filter-btn button small">Restocks</button>
+          <button data-filter="never" class="filter-btn button small">Never Restocks</button>
+          <button data-filter="unlimited" class="filter-btn button small">Unlimited</button>
+          <button data-filter="special" class="filter-btn button small">Per-Update / Special</button>
+        </div>
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <input id="search-input" type="text" placeholder="Search shop or item..." class="input w-full sm:w-52" />
+          <select id="category-select" class="select w-full sm:w-auto" aria-label="Filter by category">
+            <option value="all">Category: All</option>
+            <option value="Lobby">Lobby</option>
+            <option value="Boss Rush">Boss Rush</option>
+            <option value="Raid">Raid</option>
+            <option value="Event / Trial">Event / Trial</option>
+            <option value="Legacy Event">Legacy Event</option>
+          </select>
+          <select id="sort-select" class="select w-full sm:w-auto" aria-label="Sort shops">
+            <option value="default">Sort: Status</option>
+            <option value="name">Sort: Name (A–Z)</option>
+            <option value="items">Sort: Item Count</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="shops-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <span>Data from <code>GoldShop</code>, <code>RaidShop</code>, <code>EventShop</code>, <code>ItemsForSaleEvent</code> &amp; <code>BountyBoard</code></span>
+      <span class="footer-links">
+        <a href="./index.html">Home</a>
+        <a href="./constellation.html">Constellations</a>
+        <a href="./minigame.html">Minigames</a>
+        <a href="./shops.html">Shops</a>
+        <a href="./tower.html">Tower</a>
+        <a href="./tournament.html">Tournaments</a>
+        <a href="./reroll.html">Rerolls</a>
+      </span>
+    </div>
+  </footer>
+
+  <script>
+    const SHOPS = [
+      {
+        id: "gold_shop",
+        name: "Gold Shop",
+        category: "Lobby",
+        status: "restocks",
+        badge: "RESTOCKS · Daily (24h)",
+        cycle: "Every 24h (86,400s)",
+        currency: "Gold",
+        source: "Data.GoldShop · GoldShopUI",
+        accent: "rgb(255, 200, 70)",
+        summary: "Explicitly marked restock = true in ShopsHubUI. Rolls fresh random quantities and Gold costs every 24 hours (GOLD_SHOP_DURATION = 86400), synced via gold_shop_remaining_time_changed.",
+        items: [
+          { name: "Trait Remnants", cost: "3,000–4,000 Gold", stock: "10–15 / day", limited: true },
+          { name: "Stat Cubes", cost: "4,500–6,000 Gold", stock: "3–5 / day", limited: true },
+          { name: "Perfect Stat Cubes", cost: "3,000–4,000 Gold", stock: "3–5 / day", limited: true },
+          { name: "Star Fruit", cost: "850–1,150 Gold", stock: "3–6 / day", limited: true },
+          { name: "Epic Star Fruit", cost: "8,000–10,000 Gold", stock: "0–1 / day", limited: true },
+          { name: "Luck Potion", cost: "4,000–6,000 Gold", stock: "0–1 / day", limited: true },
+          { name: "Colored Star Fruits (G/R/P/B)", cost: "1,750–2,250 Gold", stock: "0–3 / day", limited: true },
+          { name: "XP Food Tab", cost: "Gold", stock: "Daily roll", limited: true }
+        ]
+      },
+      {
+        id: "travelling_merchant",
+        name: "Travelling Merchant (Bulma)",
+        category: "Lobby",
+        status: "restocks",
+        badge: "RESTOCKS · Every Visit (90m)",
+        cycle: "60m stay / 30m away",
+        currency: "Gold & Gems",
+        source: "Data.ItemsForSale · TravellingMerchantUI",
+        accent: "rgb(110, 235, 255)",
+        summary: "Arrives for 3,600s (60m) and leaves for 1,800s (30m). Every visit brings a newly rolled set of weighted items; each slot can be bought once per visit.",
+        items: [
+          { name: "Summon Ticket", cost: "500 Gold", stock: "1 / visit (wt 136)", limited: true },
+          { name: "Star Fruit", cost: "50 Gems", stock: "1 / visit (wt 66)", limited: true },
+          { name: "Epic Star Fruit", cost: "300 Gems", stock: "1 / visit (wt 66)", limited: true },
+          { name: "Luck Potion", cost: "200 Gems", stock: "1 / visit (wt 30)", limited: true },
+          { name: "Trait Remnants", cost: "800 Gems", stock: "1 / visit (wt 20)", limited: true },
+          { name: "Colored Star Fruits (G/R/P/B)", cost: "200 Gems", stock: "1 / visit (wt 15 ea)", limited: true }
+        ]
+      },
+      {
+        id: "makima_bossrush",
+        name: "Boss Rush: Control Shop (Makima)",
+        category: "Boss Rush",
+        status: "restocks",
+        badge: "RESTOCKS · Bi-Weekly",
+        cycle: "Every 2 Weeks (BIWEEKLY_SEED)",
+        currency: "Chainsaw Tokens",
+        source: "ItemsForSaleEvent.Makima_Bossrush",
+        accent: "rgb(255, 92, 118)",
+        summary: "BiWeekly = true in ItemsForSaleEvent. Purchase counts are stored under randommetadata['Makima_Shop_5' + BIWEEKLY_SEED], so stock resets whenever BIWEEKLY_SEED rotates.",
+        items: [
+          { name: "Trait Remnants", cost: "8 Tokens", stock: "100 / 2w", limited: true },
+          { name: "Stat Cubes", cost: "12 Tokens", stock: "50 / 2w", limited: true },
+          { name: "Perfect Stat Cubes", cost: "8 Tokens", stock: "50 / 2w", limited: true },
+          { name: "Star Fruit Capsule", cost: "6 Tokens", stock: "10 / 2w", limited: true },
+          { name: "Luck Potion", cost: "15 Tokens", stock: "3 / 2w", limited: true }
+        ]
+      },
+      {
+        id: "bleach_bossrush",
+        name: "Boss Rush: Perfection Shop (Aizen)",
+        category: "Boss Rush",
+        status: "restocks",
+        badge: "RESTOCKS · Bi-Weekly",
+        cycle: "Every 2 Weeks (BIWEEKLY_SEED)",
+        currency: "Soul Tokens",
+        source: "ItemsForSaleEvent.Bleach_Bossrush",
+        accent: "rgb(180, 120, 255)",
+        summary: "BiWeekly = true in ItemsForSaleEvent. Purchase counts are keyed under randommetadata['Bleach_Bossrush2' + BIWEEKLY_SEED], resetting every bi-weekly rotation.",
+        items: [
+          { name: "Trait Remnants", cost: "50 Tokens", stock: "100 / 2w", limited: true },
+          { name: "Stat Cubes", cost: "80 Tokens", stock: "50 / 2w", limited: true },
+          { name: "Perfect Stat Cubes", cost: "50 Tokens", stock: "50 / 2w", limited: true },
+          { name: "Star Fruit Capsule", cost: "40 Tokens", stock: "10 / 2w", limited: true },
+          { name: "Luck Potion", cost: "100 Tokens", stock: "3 / 2w", limited: true },
+          { name: "Aizen Souls", cost: "10 Tokens", stock: "150 / 2w", limited: true },
+          { name: "Byakuya / Soifon / Yoruichi Evo", cost: "200 Tokens", stock: "1 / 2w ea", limited: true },
+          { name: "Aizen Hogyoku / Wings", cost: "300 / 750 Tokens", stock: "1 / 2w ea", limited: true }
+        ]
+      },
+      {
+        id: "anniversary_shop",
+        name: "Anniversary Shop",
+        category: "Event / Trial",
+        status: "never",
+        badge: "NO RESTOCK · One-Time",
+        cycle: "Never (Static Key)",
+        currency: "Anniversary Stars",
+        source: "ItemsForSaleEvent.Anniversary_Shop",
+        accent: "rgb(176, 150, 255)",
+        summary: "Key = 'Anniversary_Shop' with no Daily or BiWeekly flag. Consumables are one-time per account; Evo items have 15T stock (unlimited).",
+        items: [
+          { name: "Trait Remnants", cost: "1,000 Stars", stock: "300 total", limited: true },
+          { name: "Stat Cubes", cost: "1,500 Stars", stock: "150 total", limited: true },
+          { name: "Perfect Stat Cubes", cost: "1,500 Stars", stock: "150 total", limited: true },
+          { name: "Relic Cubes", cost: "1,500 Stars", stock: "150 total", limited: true },
+          { name: "Curse Tokens", cost: "1,500 Stars", stock: "150 total", limited: true },
+          { name: "Limit Breaker", cost: "10,000 Stars", stock: "30 total", limited: true },
+          { name: "Epic Star Fruit", cost: "25,000 Stars", stock: "5 total", limited: true },
+          { name: "Roger Cutlass", cost: "60,000 Stars", stock: "Unlimited", limited: false },
+          { name: "Vegeta Shard / Beerus Orb / Nami Staff", cost: "30,000 Stars", stock: "Unlimited", limited: false }
+        ]
+      },
+      {
+        id: "cooking_shop",
+        name: "Kitchen Madness Shop (Meliodas)",
+        category: "Event / Trial",
+        status: "never",
+        badge: "NO RESTOCK · One-Time",
+        cycle: "Never (Static Key)",
+        currency: "Wrath Tokens",
+        source: "ItemsForSaleEvent.Cooking_Shop",
+        accent: "rgb(255, 170, 90)",
+        summary: "Key = 'Cooking_Shop_1' with no BiWeekly or Daily flag. CookingWindow only appends BIWEEKLY_SEED if BiWeekly is true, which is unset here.",
+        items: [
+          { name: "Trait Remnants", cost: "12 Tokens", stock: "250 total", limited: true },
+          { name: "Stat Cubes", cost: "12 Tokens", stock: "100 total", limited: true },
+          { name: "Relic Cubes", cost: "12 Tokens", stock: "100 total", limited: true },
+          { name: "Curse Tokens", cost: "12 Tokens", stock: "100 total", limited: true },
+          { name: "Epic Star Fruit", cost: "25 Tokens", stock: "5 total", limited: true },
+          { name: "Auto-Meliodas", cost: "200 Tokens", stock: "1 total", limited: true },
+          { name: "Auto-Cook", cost: "200 Tokens", stock: "1 total", limited: true }
+        ]
+      },
+      {
+        id: "ainz_shop",
+        name: "Einz's Shop (Ainz)",
+        category: "Event / Trial",
+        status: "never",
+        badge: "NO RESTOCK · One-Time",
+        cycle: "Never (Daily Disabled)",
+        currency: "Einz Tokens",
+        source: "ItemsForSaleEvent.Ainz_Shop · AinzShop",
+        accent: "rgb(190, 140, 255)",
+        summary: "AinzShop UI supports a Daily flag and daily_rotation slots, but ItemsForSaleEvent.Ainz_Shop has Daily unset (Key = 'Ainz_Shop'), so stock does not reset.",
+        items: [
+          { name: "Trait Remnants", cost: "10 Tokens", stock: "250 total", limited: true },
+          { name: "Stat Cubes", cost: "10 Tokens", stock: "100 total", limited: true },
+          { name: "Relic Cubes", cost: "10 Tokens", stock: "100 total", limited: true },
+          { name: "Curse Tokens", cost: "10 Tokens", stock: "100 total", limited: true },
+          { name: "Epic Star Fruit", cost: "25 Tokens", stock: "5 total", limited: true }
+        ]
+      },
+      {
+        id: "raid_sakamato",
+        name: "Sakamato Raid Shop",
+        category: "Raid",
+        status: "never",
+        badge: "NO RESTOCK · One-Time",
+        cycle: "Never (Static Key)",
+        currency: "Sakamato Tokens",
+        source: "Data.RaidShop.Sakamato",
+        accent: "rgb(255, 105, 95)",
+        summary: "Stored permanently in randommetadata['Sakamato_SHOP']. Trait Remnants and Damage Boosts are one-time stock; Evo items have 1.5B stock.",
+        items: [
+          { name: "Trait Remnants", cost: "4 Tokens", stock: "75 total", limited: true },
+          { name: "Chopsticks (Damage Boost)", cost: "20 Tokens", stock: "6 total", limited: true },
+          { name: "Evo Items (Noodles / Dice / Bottle / Bullet)", cost: "200 Tokens", stock: "Unlimited", limited: false }
+        ]
+      },
+      {
+        id: "raid_babylon",
+        name: "Babylon Raid Shop",
+        category: "Raid",
+        status: "never",
+        badge: "NO RESTOCK · One-Time",
+        cycle: "Never (Static Key)",
+        currency: "Fate Tokens",
+        source: "Data.RaidShop.Babylon",
+        accent: "rgb(255, 105, 95)",
+        summary: "Stored permanently in randommetadata['Babylon_SHOP']. Trait Remnants and Fate Damage Boosts never restock; Evo items have 1.5B stock.",
+        items: [
+          { name: "Trait Remnants", cost: "4 Tokens", stock: "75 total", limited: true },
+          { name: "Fate Damage Boost", cost: "20 Tokens", stock: "6 total", limited: true },
+          { name: "Evo Items (Enuma / Sword / Bow / Spear)", cost: "200 Tokens", stock: "Unlimited", limited: false }
+        ]
+      },
+      {
+        id: "raid_cell",
+        name: "Cell Arena Raid Shop",
+        category: "Raid",
+        status: "never",
+        badge: "NO RESTOCK · One-Time",
+        cycle: "Never (Static Key)",
+        currency: "Cell Tokens",
+        source: "Data.RaidShop.Cell_Raid",
+        accent: "rgb(255, 105, 95)",
+        summary: "Stored permanently in randommetadata['Cell_Raid_SHOP']. Trait Remnants and Cell Damage Boosts never restock; Evo items have 1.5B stock.",
+        items: [
+          { name: "Trait Remnants", cost: "4 Tokens", stock: "75 total", limited: true },
+          { name: "Cell Damage Boost", cost: "20 Tokens", stock: "6 total", limited: true },
+          { name: "Evo Items (Egg / Robe / Core / Sword)", cost: "200 Tokens", stock: "Unlimited", limited: false }
+        ]
+      },
+      {
+        id: "raid_shinjuku",
+        name: "Shinjuku Raid Shop",
+        category: "Raid",
+        status: "never",
+        badge: "NO RESTOCK · One-Time",
+        cycle: "Never (Static Key)",
+        currency: "Shinjuku Tokens",
+        source: "Data.RaidShop.Shinjuku_Raid",
+        accent: "rgb(255, 105, 95)",
+        summary: "Stored permanently in randommetadata['Shinjuku_Raid_SHOP']. Has 250 Trait Remnants and 6 Damage Boosts total; Evo items and Gojo Secret Portal have 1.5B stock.",
+        items: [
+          { name: "Trait Remnants", cost: "4 Tokens", stock: "250 total", limited: true },
+          { name: "Shinjuku Damage Boost", cost: "20 Tokens", stock: "6 total", limited: true },
+          { name: "Gojo Secret Portal", cost: "400 Tokens", stock: "Unlimited", limited: false },
+          { name: "Evo Items (Ball / Katana / Pole / Hammer / Blood)", cost: "150 Tokens", stock: "Unlimited", limited: false }
+        ]
+      },
+      {
+        id: "legacy_froghunt",
+        name: "Frog Hunt Shop (JoJo)",
+        category: "Legacy Event",
+        status: "never",
+        badge: "NO RESTOCK · One-Time",
+        cycle: "Never (Static Key)",
+        currency: "JojoCurrency",
+        source: "ItemsForSaleEvent.FrogHunt",
+        accent: "rgb(140, 140, 155)",
+        summary: "Key = 'FrogHunt' with no Daily or BiWeekly reset. Consumables are capped once per account; Evo items have 1.5B stock.",
+        items: [
+          { name: "Trait Remnants", cost: "4,000", stock: "250 total", limited: true },
+          { name: "Stat / Perfect Stat Cubes", cost: "6,000 / 4,000", stock: "50 total ea", limited: true },
+          { name: "Star Fruit Capsule / Luck Potion", cost: "4,000 / 8,000", stock: "10 / 3 total", limited: true },
+          { name: "JoJo Evo Items (5x)", cost: "50,000–100,000", stock: "Unlimited", limited: false }
+        ]
+      },
+      {
+        id: "legacy_hxhhunt",
+        name: "Hunter Hunt Shop (HxH)",
+        category: "Legacy Event",
+        status: "never",
+        badge: "NO RESTOCK · One-Time",
+        cycle: "Never (Static Key)",
+        currency: "HxHCurrency",
+        source: "ItemsForSaleEvent.HxhHunt",
+        accent: "rgb(140, 140, 155)",
+        summary: "Key = 'HxhHunt' with no Daily or BiWeekly reset. Consumables are capped once per account; Evo items have 1.5B stock.",
+        items: [
+          { name: "Trait Remnants", cost: "2,000", stock: "250 total", limited: true },
+          { name: "Stat / Perfect Stat Cubes", cost: "3,000 / 2,000", stock: "50 total ea", limited: true },
+          { name: "Star Fruit Capsule / Luck Potion", cost: "2,000 / 4,000", stock: "10 / 3 total", limited: true },
+          { name: "HxH Evo Items (6x)", cost: "20,000–30,000", stock: "Unlimited", limited: false }
+        ]
+      },
+      {
+        id: "legacy_christmas",
+        name: "Christmas Part 1 Shop",
+        category: "Legacy Event",
+        status: "never",
+        badge: "NO RESTOCK · One-Time",
+        cycle: "Never (Static Key)",
+        currency: "GingerBeardToken / Gems",
+        source: "ItemsForSaleEvent.Christmasp1",
+        accent: "rgb(140, 140, 155)",
+        summary: "Key = 'Christmasp1' with no Daily or BiWeekly reset. Consumables are one-time stock; Portals and Evo items have 15T stock.",
+        items: [
+          { name: "Trait Remnants", cost: "10,000", stock: "100 total", limited: true },
+          { name: "Stat / Perfect Stat Cubes", cost: "15,000 / 10,000", stock: "50 total ea", limited: true },
+          { name: "Star Fruit Capsule", cost: "10,000", stock: "10 total", limited: true },
+          { name: "Christmas Portal / Evo Items", cost: "200 Gems / 100k–150k", stock: "Unlimited", limited: false }
+        ]
+      },
+      {
+        id: "navi_event_shop",
+        name: "Navi's Event Shop (Bounty Board)",
+        category: "Lobby",
+        status: "unlimited",
+        badge: "UNLIMITED · No Cap",
+        cycle: "Never runs out",
+        currency: "Event Tokens",
+        source: "Data.EventShop · BountyBoardUI",
+        accent: "rgb(124, 196, 255)",
+        summary: "MAX_PER_PURCHASE = inf and no stock limit exists. Buy as many times as you have Event Tokens.",
+        items: [
+          { name: "Trait Remnants (x1)", cost: "1 Event Token", stock: "Unlimited", limited: false },
+          { name: "Stat Cubes (x1)", cost: "1 Event Token", stock: "Unlimited", limited: false },
+          { name: "Gems (x200)", cost: "1 Event Token", stock: "Unlimited", limited: false },
+          { name: "Star Fruit Capsule (x1)", cost: "1 Event Token", stock: "Unlimited", limited: false }
+        ]
+      },
+      {
+        id: "ace_shop",
+        name: "Flame's Shop (Banana Island)",
+        category: "Event / Trial",
+        status: "unlimited",
+        badge: "UNLIMITED · Repeatable",
+        cycle: "Always available",
+        currency: "Gems",
+        source: "Data.AcePortal · AceShop",
+        accent: "rgb(255, 130, 64)",
+        summary: "No stock limit or cooldown. You can purchase Tier 1 Banana Island Portals repeatedly with Gems.",
+        items: [
+          { name: "Tier 1 Banana Island Portal", cost: "1,000 Gems", stock: "Unlimited", limited: false }
+        ]
+      },
+      {
+        id: "cooking_pantry",
+        name: "Kitchen Madness Food Pantry",
+        category: "Event / Trial",
+        status: "unlimited",
+        badge: "UNLIMITED · Ingredients",
+        cycle: "Always available",
+        currency: "Cooking Coins",
+        source: "CookingFoodShop",
+        accent: "rgb(124, 196, 255)",
+        summary: "Mode ingredient shop with Buy 1 / Buy x5 buttons and no stock limits.",
+        items: [
+          { name: "Cooking Ingredients", cost: "Cooking Coins", stock: "Unlimited", limited: false }
+        ]
+      },
+      {
+        id: "blank_token_exchange",
+        name: "Blank Token Exchange",
+        category: "Lobby",
+        status: "special",
+        badge: "PER UPDATE · v10.5",
+        cycle: "Resets on Major Update",
+        currency: "Blank Tokens",
+        source: "Data.BountyBoard.BLANK",
+        accent: "rgb(245, 197, 66)",
+        summary: "Each featured Blank unit can be claimed once per major update (currently UPDATE = '10.5'). Earn/hold cap is 60 Blank Tokens per update.",
+        items: [
+          { name: "SJW (Evolved)", cost: "30 Blank Tokens", stock: "1 / update", limited: true },
+          { name: "Gilgamesh (Evolved)", cost: "30 Blank Tokens", stock: "1 / update", limited: true }
+        ]
+      },
+      {
+        id: "trophy_shop",
+        name: "Emote Shop (Trophy Shop)",
+        category: "Lobby",
+        status: "special",
+        badge: "SERVER ROTATION · 1x Unlock",
+        cycle: "Server interval (no client timer)",
+        currency: "Trophies",
+        source: "TrophyShopServiceClient · TrophyShopUI",
+        accent: "rgb(72, 222, 186)",
+        summary: "TrophyShopServiceClient tracks server trophy_shop_interval (via request_current_trophy_shop / trophy_shop_changed), though emotes are permanent 1x unlocks once bought.",
+        items: [
+          { name: "Trophy Emotes", cost: "Trophies", stock: "1x permanent unlock", limited: true }
+        ]
+      },
+      {
+        id: "robux_store",
+        name: "Robux Store",
+        category: "Lobby",
+        status: "special",
+        badge: "NO RESTOCK · Permanent / Max Uses",
+        cycle: "Gamepasses 1x · Bundles capped",
+        currency: "Robux",
+        source: "Data.ShopItems · ShopUI",
+        accent: "rgb(245, 197, 66)",
+        summary: "Gamepasses are 1x permanent purchases, Bundles are capped by max_uses per player, and currency/boost products are repeatable.",
+        items: [
+          { name: "Gamepasses", cost: "Robux", stock: "1x permanent", limited: true },
+          { name: "Bundles", cost: "Robux", stock: "max_uses cap", limited: true },
+          { name: "Gems / Gold / Boosts / Gifts", cost: "Robux", stock: "Repeatable", limited: false }
+        ]
+      }
+    ];
+
+    let activeFilter = "all";
+    let categoryFilter = "all";
+    let searchQuery = "";
+    let sortMode = "default";
+
+    function fmtHMS(sec) {
+      sec = Math.max(0, Math.floor(sec));
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = sec % 60;
+      return `${String(h).padStart(2, "0")}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`;
+    }
+
+    function updateClock() {
+      const nowMs = Date.now();
+      const nowSec = Math.floor(nowMs / 1000);
+      const utcStr = new Date(nowMs).toISOString().slice(11, 19);
+      const nextUtc = (Math.floor(nowSec / 86400) + 1) * 86400 - nowSec;
+      const resetStr = fmtHMS(nextUtc);
+
+      document.getElementById("utc-clock").textContent = utcStr;
+      document.getElementById("utc-reset").textContent = resetStr;
+      document.getElementById("utc-clock-m").textContent = utcStr;
+      document.getElementById("utc-reset-m").textContent = resetStr;
+    }
+
+    function updateStats() {
+      document.getElementById("stat-total").textContent = SHOPS.length;
+      document.getElementById("stat-restocks").textContent = SHOPS.filter((s) => s.status === "restocks").length;
+      document.getElementById("stat-never").textContent = SHOPS.filter((s) => s.status === "never").length;
+      document.getElementById("stat-other").textContent = SHOPS.filter((s) => s.status === "unlimited" || s.status === "special").length;
+    }
+
+    function statusClass(status) {
+      if (status === "restocks") return "status-restock";
+      if (status === "never") return "status-never";
+      if (status === "unlimited") return "status-unlimited";
+      return "status-special";
+    }
+
+    function currencyIconHtml(currency, accent) {
+      const c = accent || "#aaa";
+      return `<svg viewBox="0 0 24 24" width="14" height="14" class="ac-icon ac-icon-xs" aria-hidden="true"><polygon points="12,2 20,7 20,17 12,22 4,17 4,7" fill="${c}" fill-opacity="0.3" stroke="${c}" stroke-width="1.8"/><circle cx="12" cy="12" r="3" fill="${c}"/></svg>`;
+    }
+
+    function itemIconHtml(name) {
+      const n = String(name || "").toLowerCase();
+      if (n.includes("limit")) return `<svg viewBox="0 0 24 24" width="14" height="14" class="ac-icon ac-icon-xs" aria-hidden="true"><polygon points="12,2 19,10 15,22 9,22 5,10" fill="#ff8054" fill-opacity="0.35" stroke="#ff8054" stroke-width="1.8"/></svg>`;
+      return `<svg viewBox="0 0 24 24" width="14" height="14" class="ac-icon ac-icon-xs" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="3" fill="#888" fill-opacity="0.2" stroke="#aaa" stroke-width="1.6"/><path d="M8 10h8M8 14h5" stroke="#ccc" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+    }
+
+    function syncFilterButtons() {
+      document.querySelectorAll(".filter-btn").forEach((btn) => {
+        btn.classList.toggle("primary", btn.dataset.filter === activeFilter);
+      });
+    }
+
+    function renderShops() {
+      const q = searchQuery.toLowerCase();
+      let list = SHOPS.filter((s) => {
+        if (activeFilter !== "all" && s.status !== activeFilter) return false;
+        if (categoryFilter !== "all" && s.category !== categoryFilter) return false;
+        if (q) {
+          const hay = [
+            s.name,
+            s.category,
+            s.currency,
+            s.source,
+            s.summary,
+            s.cycle,
+            ...s.items.map((i) => `${i.name} ${i.cost} ${i.stock}`)
+          ].join(" ").toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+
+      if (sortMode === "name") {
+        list = [...list].sort((a, b) => a.name.localeCompare(b.name));
+      } else if (sortMode === "items") {
+        list = [...list].sort((a, b) => b.items.length - a.items.length || a.name.localeCompare(b.name));
+      }
+
+      const grid = document.getElementById("shops-grid");
+      if (!list.length) {
+        grid.innerHTML = `<div class="col-span-full card p-8 text-center text-sm" style="color:var(--muted);">No shops match your current filters.</div>`;
+        return;
+      }
+
+      grid.innerHTML = list.map((s) => {
+        const itemsHtml = s.items.map((item) => `
+          <div class="item-row">
+            <span class="item-row-name inline-flex items-center gap-2" title="${item.name}">
+              ${itemIconHtml(item.name)}
+              <span>${item.name}</span>
+            </span>
+            <span class="item-row-meta">
+              <span style="color:var(--muted);">${item.cost}</span>
+              <span style="color:${item.limited ? "#ffd37a" : "#7cc4ff"};">${item.stock}</span>
+            </span>
+          </div>
+        `).join("");
+
+        return `
+          <article class="card card-hover p-4 sm:p-5 flex flex-col justify-between gap-4" style="border-top: 2px solid ${s.accent};">
+            <div class="space-y-3">
+              <div class="flex flex-wrap items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="status-pill ${statusClass(s.status)}">${s.badge}</span>
+                    <span class="tag">${s.category}</span>
+                  </div>
+                  <h3 class="text-base sm:text-lg font-bold mt-2">${s.name}</h3>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <div class="sub-box p-2.5">
+                  <div style="color:var(--faint);">Restock Cycle</div>
+                  <div class="font-semibold mt-0.5">${s.cycle}</div>
+                </div>
+                <div class="sub-box p-2.5">
+                  <div style="color:var(--faint);">Currency</div>
+                  <div class="font-semibold mt-0.5 inline-flex items-center gap-1.5">${currencyIconHtml(s.currency, s.accent)}<span>${s.currency}</span></div>
+                </div>
+              </div>
+
+              <p class="text-xs leading-relaxed" style="color:var(--muted);">${s.summary}</p>
+
+              <div class="space-y-1.5">
+                <div class="text-[11px] font-mono uppercase tracking-wider" style="color:var(--faint);">Stock &amp; Prices</div>
+                ${itemsHtml}
+              </div>
+            </div>
+
+            <div class="pt-3 border-t flex flex-wrap items-center justify-between gap-1 text-[11px] font-mono" style="color:var(--faint);">
+              <span class="break-all">${s.source}</span>
+              <span>${s.items.length} ${s.items.length === 1 ? "entry" : "entries"}</span>
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    document.querySelectorAll(".filter-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        activeFilter = btn.dataset.filter;
+        syncFilterButtons();
+        renderShops();
+      });
+    });
+
+    document.getElementById("category-select").addEventListener("change", (e) => {
+      categoryFilter = e.target.value;
+      renderShops();
+    });
+
+    document.getElementById("sort-select").addEventListener("change", (e) => {
+      sortMode = e.target.value;
+      renderShops();
+    });
+
+    document.getElementById("search-input").addEventListener("input", (e) => {
+      searchQuery = e.target.value.trim();
+      renderShops();
+    });
+
+    updateStats();
+    updateClock();
+    renderShops();
+    setInterval(updateClock, 1000);
+  </script>
+</body>
+</html>

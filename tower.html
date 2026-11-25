@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weekly Tower Forecast — Anime Crusaders</title>
+  <meta name="theme-color" content="#0f0f0f" />
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap">
+      <div class="nav-left">
+        <a class="brand" href="./index.html">Anime Crusaders</a>
+        <nav class="nav-links" aria-label="Primary">
+          <a href="./index.html">Home</a>
+          <a href="./constellation.html">Constellations</a>
+          <a href="./minigame.html">Minigames</a>
+          <a href="./shops.html">Shops</a>
+          <a href="./tower.html" aria-current="page">Tower</a>
+          <a href="./tournament.html">Tournaments</a>
+          <a href="./reroll.html">Rerolls</a>
+        </nav>
+      </div>
+      <div class="nav-meta">
+        <span>Week <strong id="week-idx">----</strong></span>
+        <span style="color:#454545;">|</span>
+        <span>Reset <strong id="week-reset">--d --h --m</strong></span>
+      </div>
+      <button type="button" class="nav-toggle" aria-expanded="false" aria-label="Toggle navigation" onclick="var n=this.closest('.nav');var o=n.classList.toggle('is-open');this.setAttribute('aria-expanded',o);this.textContent=o?'Close':'Menu';">Menu</button>
+    </div>
+  </header>
+
+  <main class="wrap py-7 sm:py-10 space-y-6 sm:space-y-8">
+    <section class="hero-dots pb-6 border-b">
+      <h1 class="text-2xl sm:text-4xl font-bold tracking-tight">Weekly Tower Forecast</h1>
+      <p class="text-sm sm:text-base mt-2 max-w-3xl" style="color:var(--muted);">
+        Deterministic 7-floor schedule from <code>Random.new(70707 + week * 7919)</code> with <code>WEEK_OFFSET = 259200</code>. Shows every floor's map, two elemental weaknesses (<code>+75%</code> / <code>+150%</code>), Hard mode resistance (<code>200%</code>), and token payouts.
+      </p>
+
+      <div class="card p-3 mt-4 flex items-center justify-between text-xs md:hidden">
+        <div>
+          <div style="color:var(--faint);">Tower Week</div>
+          <div id="week-idx-m" class="font-mono font-semibold tabular-nums mt-0.5">----</div>
+        </div>
+        <div class="text-right">
+          <div style="color:var(--faint);">Weekly Reset</div>
+          <div id="week-reset-m" class="font-mono font-semibold tabular-nums mt-0.5">--d --h --m</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div class="card p-3.5 sm:p-4">
+        <div class="text-xs" style="color:var(--muted);">Current Day</div>
+        <div id="stat-day" class="text-xl sm:text-2xl font-bold mt-1">--</div>
+        <div id="stat-next-floor" class="text-xs mt-1 font-mono" style="color:var(--faint);">Next floor in --</div>
+      </div>
+      <div class="card p-3.5 sm:p-4">
+        <div class="text-xs" style="color:var(--muted);">Floors Unlocked</div>
+        <div id="stat-unlocked" class="text-xl sm:text-2xl font-bold mt-1 tabular-nums">-- / 7</div>
+        <div class="text-xs mt-1" style="color:var(--faint);">20 waves &bull; 3 runs/floor</div>
+      </div>
+      <div class="card p-3.5 sm:p-4">
+        <div class="text-xs" style="color:var(--muted);">Full Week Event Tokens</div>
+        <div id="stat-tokens" class="text-xl sm:text-2xl font-bold mt-1 tabular-nums" style="color:#6ee787;">--</div>
+        <div id="stat-tokens-sub" class="text-xs mt-1" style="color:var(--faint);">Hard mode pays 2x Event Tokens</div>
+      </div>
+      <div class="card p-3.5 sm:p-4">
+        <div class="text-xs" style="color:var(--muted);">Full Week Blank Tokens</div>
+        <div id="stat-blanks" class="text-xl sm:text-2xl font-bold mt-1 tabular-nums" style="color:#7cc4ff;">--</div>
+        <div class="text-xs mt-1" style="color:var(--faint);">First clear of each floor/day</div>
+      </div>
+    </section>
+
+    <section class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-3">
+      <div class="flex flex-wrap items-center gap-2" id="week-tabs"></div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="hard-toggle" class="button small primary flex-1 sm:flex-none">Mode: Hard (2x Tokens)</button>
+        <button id="tz-toggle" class="button small flex-1 sm:flex-none">Time: Local</button>
+      </div>
+    </section>
+
+    <section id="week-summary" class="card p-4 sm:p-5"></section>
+
+    <section id="floors-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <span>Formula: <code>Random.new(70707 + week * 7919)</code> &bull; <code>ReplicatedStorage.Framework.Data.WeeklyTower</code></span>
+      <span class="footer-links">
+        <a href="./index.html">Home</a>
+        <a href="./constellation.html">Constellations</a>
+        <a href="./minigame.html">Minigames</a>
+        <a href="./shops.html">Shops</a>
+        <a href="./tower.html">Tower</a>
+        <a href="./tournament.html">Tournaments</a>
+        <a href="./reroll.html">Rerolls</a>
+      </span>
+    </div>
+  </footer>
+
+  <script>
+    const SEED = 70707;
+    const FLOORS = 7;
+    const DAY_SECONDS = 86400;
+    const WEEK_SECONDS = 604800;
+    const WEEK_OFFSET = 259200;
+    const HARD_TOKENS = 2;
+    const HARD_RESISTANCE = 200;
+    const HARD_HEALTH = 1.5;
+
+    const REWARDS = [
+      { tokens: 3, blank: 5 },
+      { tokens: 3, blank: 5 },
+      { tokens: 3, blank: 5 },
+      { tokens: 5, blank: 5 },
+      { tokens: 8, blank: 10 },
+      { tokens: 9, blank: 10 },
+      { tokens: 19, blank: 20 }
+    ];
+
+    const ELEMENTS = [
+      "fire_damage",
+      "water_damage",
+      "lightning_damage",
+      "ice_damage",
+      "air_damage",
+      "rose_damage",
+      "light_damage",
+      "dark_damage"
+    ];
+    const ELEMENT_BUFFS = [0.75, 1.5];
+    const FLOOR_SCALE = [2.38, 3.7, 5.75, 8.95, 14, 22, 34.5];
+    const FLOOR_HEALTH = [33, 73, 161, 354, 782, 1725, 3805];
+    const BASE_LEVELS = [
+      "namek_infinite",
+      "marineford_infinite",
+      "karakura_infinite",
+      "shibuya_infinite",
+      "Entertainment_district_infinite",
+      "DemonCity_infinite",
+      "SoulSociety_infinite",
+      "RuinedWestCity_infinite",
+      "Culling_Games_infinite",
+      "Doldrey_infinite"
+    ];
+    const LEVELS_FROM_WEEK = [{ id: "Sword_Arena_infinite", week: 2968 }];
+    const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+    const LEVEL_META = {
+      namek_infinite: "Planet Namek",
+      marineford_infinite: "Marine's Ford",
+      karakura_infinite: "Karakura Town",
+      shibuya_infinite: "Shibuya",
+      Entertainment_district_infinite: "Demon District",
+      DemonCity_infinite: "Devil City",
+      SoulSociety_infinite: "Soul Society",
+      RuinedWestCity_infinite: "West City (Ruined)",
+      Culling_Games_infinite: "Culling Games",
+      Doldrey_infinite: "Doldrey",
+      Sword_Arena_infinite: "Sword Arena"
+    };
+
+    const ELEM_META = {
+      fire_damage: { name: "Fire", color: "#ff7a52" },
+      water_damage: { name: "Water", color: "#58b8ff" },
+      lightning_damage: { name: "Lightning", color: "#ffd84d" },
+      ice_damage: { name: "Ice", color: "#90e8ff" },
+      air_damage: { name: "Wind", color: "#7ff0b4" },
+      rose_damage: { name: "Rose", color: "#ff88c8" },
+      light_damage: { name: "Light", color: "#fff0a6" },
+      dark_damage: { name: "Dark", color: "#b688ff" },
+      physical: { name: "Physical", color: "#ff9b70" },
+      magic: { name: "Magic", color: "#9c8cff" }
+    };
+
+    function elemIconHtml(id, sizePx) {
+      const sz = sizePx || 16;
+      const meta = ELEM_META[id] || { color: "#fff" };
+      const svgs = {
+        physical: `<path d="M14.5 4 20 9.5 10.5 19H5v-5.5L14.5 4Z" fill="${meta.color}" fill-opacity="0.35" stroke="${meta.color}" stroke-width="1.5" stroke-linejoin="round"/>`,
+        magic: `<path d="M12 2.5 14.5 9.5 21.5 12l-7 2.5L12 21.5l-2.5-7L2.5 12l7-2.5Z" fill="${meta.color}" fill-opacity="0.4" stroke="${meta.color}" stroke-width="1.5"/>`,
+        fire_damage: `<path d="M12.5 2.5c2 3 4.5 5.2 4.5 9a5 5 0 1 1-10 0c0-2.4 1.3-4.3 2.8-6.1.2 1.6 1 2.4 2.2 2.8-.3-2 .1-3.8.5-5.7Z" fill="${meta.color}" fill-opacity="0.4" stroke="${meta.color}" stroke-width="1.5" stroke-linejoin="round"/>`,
+        lightning_damage: `<path d="M13 2 5 13h6l-1 9 9-12h-6V2Z" fill="${meta.color}" fill-opacity="0.4" stroke="${meta.color}" stroke-width="1.5" stroke-linejoin="round"/>`,
+        ice_damage: `<path d="M12 2v20M4.5 6.5l15 11M19.5 6.5l-15 11" stroke="${meta.color}" stroke-width="1.7" stroke-linecap="round"/>`,
+        water_damage: `<path d="M12 2.5C8 8 6 11.4 6 14.5a6 6 0 0 0 12 0C18 11.4 16 8 12 2.5Z" fill="${meta.color}" fill-opacity="0.35" stroke="${meta.color}" stroke-width="1.6"/><path d="M9.5 14.5a2.5 2.5 0 0 0 2.5 2.5" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/>`,
+        air_damage: `<path d="M4 9h10a2.5 2.5 0 1 0-2.5-2.5M3 13h14a2.5 2.5 0 1 1-2.5 2.5M5 17h7" fill="none" stroke="${meta.color}" stroke-width="1.8" stroke-linecap="round"/>`,
+        rose_damage: `<path d="M12 4c3 0 6 2.5 6 6 0 4-3 6.5-6 9.5C9 16.5 6 14 6 10c0-3.5 3-6 6-6Z" fill="${meta.color}" fill-opacity="0.35" stroke="${meta.color}" stroke-width="1.5"/><circle cx="12" cy="9.5" r="2.2" fill="#fff" fill-opacity="0.8"/>`,
+        light_damage: `<circle cx="12" cy="12" r="4.5" fill="${meta.color}" stroke="#fff" stroke-width="1"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2.2 2.2M16.8 16.8 19 19M19 5l-2.2 2.2M7.2 16.8 5 19" stroke="${meta.color}" stroke-width="1.7" stroke-linecap="round"/>`,
+        dark_damage: `<path d="M15.5 4.2A7.8 7.8 0 1 0 19.8 16 6.2 6.2 0 0 1 15.5 4.2Z" fill="${meta.color}" fill-opacity="0.45" stroke="${meta.color}" stroke-width="1.6"/>`
+      };
+      return `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" class="ac-icon" aria-hidden="true">${svgs[id] || svgs.light_damage}</svg>`;
+    }
+
+    class RobloxRandom {
+      constructor(seed) {
+        this.MULT = 6364136223846793005n;
+        this.INC = 105n;
+        this.MASK64 = (1n << 64n) - 1n;
+        this.MASK32 = 0xFFFFFFFFn;
+        this.state = 0n;
+        this.nextUint32();
+        this.state = (this.state + BigInt.asUintN(64, BigInt(seed))) & this.MASK64;
+        this.nextUint32();
+      }
+      nextUint32() {
+        const oldstate = this.state;
+        this.state = (oldstate * this.MULT + (this.INC | 1n)) & this.MASK64;
+        const xorshifted = Number((((oldstate >> 18n) ^ oldstate) >> 27n) & this.MASK32);
+        const rot = Number((oldstate >> 59n) & 31n);
+        return ((xorshifted >>> rot) | ((xorshifted << ((-rot) & 31)) >>> 0)) >>> 0;
+      }
+      nextInteger(min, max) {
+        if (min > max) [min, max] = [max, min];
+        const range = BigInt(max - min + 1);
+        if (range <= 1n) return min;
+        let x = range * BigInt(this.nextUint32());
+        let l = x & this.MASK32;
+        if (l < range) {
+          const t = ((1n << 32n) - range) % range;
+          while (l < t) {
+            x = range * BigInt(this.nextUint32());
+            l = x & this.MASK32;
+          }
+        }
+        return min + Number(x >> 32n);
+      }
+    }
+
+    function weekOf(t) { return Math.floor((t + WEEK_OFFSET) / WEEK_SECONDS); }
+    function dayOf(t) { return Math.floor(((t + WEEK_OFFSET) % WEEK_SECONDS) / DAY_SECONDS) + 1; }
+    function weekStart(w) { return w * WEEK_SECONDS - WEEK_OFFSET; }
+    function opensAt(w, d) { return weekStart(w) + (d - 1) * DAY_SECONDS; }
+
+    function levelsOf(w) {
+      const arr = [...BASE_LEVELS];
+      for (const entry of LEVELS_FROM_WEEK) {
+        if (entry.week <= w) arr.push(entry.id);
+      }
+      return arr;
+    }
+
+    const weekCache = new Map();
+    function getFloors(w) {
+      if (weekCache.has(w)) return weekCache.get(w);
+      const rng = new RobloxRandom(SEED + w * 7919);
+      const lvls = levelsOf(w);
+      for (let i = lvls.length; i >= 2; i--) {
+        const j = rng.nextInteger(1, i);
+        const tmp = lvls[i - 1];
+        lvls[i - 1] = lvls[j - 1];
+        lvls[j - 1] = tmp;
+      }
+      const out = [];
+      for (let f = 1; f <= FLOORS; f++) {
+        const pool = [...ELEMENTS];
+        const e1 = pool.splice(rng.nextInteger(1, pool.length) - 1, 1)[0];
+        const e2 = pool.splice(rng.nextInteger(1, pool.length) - 1, 1)[0];
+        const resist = rng.nextInteger(1, 2) === 1 ? "physical" : "magic";
+        const rw = REWARDS[f - 1] || REWARDS[REWARDS.length - 1];
+        out.push({
+          floor: f,
+          dayName: DAY_NAMES[f - 1],
+          level: lvls[(f - 1) % lvls.length],
+          elements: [e1, e2],
+          resist,
+          scale: FLOOR_SCALE[f - 1],
+          health: FLOOR_HEALTH[f - 1],
+          tokens: rw.tokens,
+          blank: rw.blank
+        });
+      }
+      weekCache.set(w, out);
+      return out;
+    }
+
+    let selectedOffset = 0;
+    let isHard = true;
+    let useUTC = false;
+
+    function fmtDHM(sec) {
+      sec = Math.max(0, Math.floor(sec));
+      const d = Math.floor(sec / 86400);
+      const h = Math.floor((sec % 86400) / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = sec % 60;
+      if (d > 0) return `${d}d ${String(h).padStart(2, "0")}h ${String(m).padStart(2, "0")}m`;
+      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    }
+
+    function fmtDate(sec) {
+      const d = new Date(sec * 1000);
+      return d.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: useUTC ? "UTC" : undefined
+      }) + (useUTC ? " UTC" : "");
+    }
+
+    function renderWeekTabs(currentWeek) {
+      const el = document.getElementById("week-tabs");
+      el.innerHTML = [0, 1, 2, 3, 4].map((off) => {
+        const w = currentWeek + off;
+        const label = off === 0 ? `This Week (#${w})` : off === 1 ? `Next Week (#${w})` : `+${off}w (#${w})`;
+        return `<button data-off="${off}" class="week-btn button small ${selectedOffset === off ? "primary" : ""}">${label}</button>`;
+      }).join("");
+      el.querySelectorAll(".week-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          selectedOffset = Number(btn.dataset.off);
+          renderAll();
+        });
+      });
+    }
+
+    function renderAll() {
+      const nowSec = Math.floor(Date.now() / 1000);
+      const curWeek = weekOf(nowSec);
+      const curDay = dayOf(nowSec);
+      const targetWeek = curWeek + selectedOffset;
+      const floors = getFloors(targetWeek);
+
+      document.getElementById("week-idx").textContent = curWeek;
+      document.getElementById("week-idx-m").textContent = curWeek;
+      const resetLeft = weekStart(curWeek + 1) - nowSec;
+      const nextDayLeft = (Math.floor(nowSec / DAY_SECONDS) + 1) * DAY_SECONDS - nowSec;
+      document.getElementById("week-reset").textContent = fmtDHM(resetLeft);
+      document.getElementById("week-reset-m").textContent = fmtDHM(resetLeft);
+
+      document.getElementById("stat-day").textContent = DAY_NAMES[curDay - 1];
+      document.getElementById("stat-next-floor").textContent = curDay < 7 ? `Floor ${curDay + 1} in ${fmtDHM(nextDayLeft)}` : `Resets in ${fmtDHM(resetLeft)}`;
+      document.getElementById("stat-unlocked").textContent = selectedOffset === 0 ? `${curDay} / 7` : "0 / 7";
+
+      const tokMult = isHard ? HARD_TOKENS : 1;
+      const runTokSum = floors.reduce((a, f) => a + f.tokens * tokMult, 0);
+      const totalTok3Runs = runTokSum * 3;
+      const totalBlank = floors.reduce((a, f) => a + f.blank, 0);
+      document.getElementById("stat-tokens").textContent = `${totalTok3Runs}`;
+      document.getElementById("stat-tokens-sub").textContent = `${runTokSum}/clear × 3 runs (${isHard ? "2x Hard" : "1x Normal"})`;
+      document.getElementById("stat-blanks").textContent = totalBlank;
+
+      renderWeekTabs(curWeek);
+
+      const startSec = weekStart(targetWeek);
+      const endSec = weekStart(targetWeek + 1);
+      document.getElementById("week-summary").innerHTML = `
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div class="text-xs font-mono" style="color:var(--faint);">WEEK #${targetWeek} &bull; ${isHard ? "HARD MODE (1.5x HP · 2x EVENT TOKENS)" : "NORMAL MODE"}</div>
+            <h2 class="text-lg font-bold mt-0.5">${fmtDate(startSec)} &rarr; ${fmtDate(endSec)}</h2>
+          </div>
+          <div class="flex flex-wrap gap-2 text-xs font-mono">
+            <span class="tag">${totalTok3Runs} Max Event Tokens (3 runs/floor)</span>
+            <span class="tag">${totalBlank} Blank Tokens (1st clear/day)</span>
+          </div>
+        </div>
+      `;
+
+      document.getElementById("floors-grid").innerHTML = floors.map((f) => {
+        const unlocked = selectedOffset === 0 && f.floor <= curDay;
+        const isToday = selectedOffset === 0 && f.floor === curDay;
+        const e1 = ELEM_META[f.elements[0]] || { name: f.elements[0], color: "#fff" };
+        const e2 = ELEM_META[f.elements[1]] || { name: f.elements[1], color: "#fff" };
+        const res = ELEM_META[f.resist] || { name: f.resist, color: "#ff9b70" };
+        const hpDisp = Math.round(f.health * (isHard ? HARD_HEALTH : 1));
+        const tokPerClear = f.tokens * tokMult;
+        const openTime = opensAt(targetWeek, f.floor);
+
+        return `
+          <article class="card card-hover p-4 sm:p-5 flex flex-col justify-between gap-4" style="${isToday ? "border-color: #ffffff; box-shadow: 0 0 0 1px rgba(255,255,255,0.2);" : ""}">
+            <div class="space-y-3">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="tag font-semibold" style="${isToday ? "color:#0f0f0f;background:#fff;border-color:#fff;" : ""}">Floor ${f.floor} &bull; ${f.dayName}</span>
+                    ${isToday ? `<span class="tag" style="color:#6ee787;border-color:rgba(110,231,135,0.4);">Today</span>` : unlocked ? `<span class="tag" style="color:#aaa;">Open</span>` : `<span class="tag">Opens ${fmtDate(openTime)}</span>`}
+                  </div>
+                  <h3 class="text-base sm:text-lg font-bold mt-2">${LEVEL_META[f.level] || f.level}</h3>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <div class="sub-box p-2.5">
+                  <div style="color:var(--faint);">Weak #1 (+75%)</div>
+                  <div class="font-semibold mt-0.5 inline-flex items-center gap-1.5" style="color:${e1.color};">${elemIconHtml(f.elements[0], 15)}<span>${e1.name} (1.75x)</span></div>
+                </div>
+                <div class="sub-box p-2.5">
+                  <div style="color:var(--faint);">Weak #2 (+150%)</div>
+                  <div class="font-semibold mt-0.5 inline-flex items-center gap-1.5" style="color:${e2.color};">${elemIconHtml(f.elements[1], 15)}<span>${e2.name} (2.50x)</span></div>
+                </div>
+              </div>
+
+              <div class="sub-box p-2.5 flex items-center justify-between text-xs">
+                <span style="color:var(--faint);">${isHard ? "Hard Resistance (200%)" : "Normal Resistance"}</span>
+                <span class="font-semibold inline-flex items-center gap-1.5" style="color:${isHard ? res.color : "var(--muted)"};">${isHard ? `${elemIconHtml(f.resist, 15)}<span>${res.name} (-66.7% dmg)</span>` : "None"}</span>
+              </div>
+
+              <div class="grid grid-cols-3 gap-2 text-xs font-mono">
+                <div class="sub-box p-2 text-center">
+                  <div style="color:var(--faint);">Event Tok</div>
+                  <div class="font-bold mt-0.5" style="color:#6ee787;">${tokPerClear} x3</div>
+                </div>
+                <div class="sub-box p-2 text-center">
+                  <div style="color:var(--faint);">Blank Tok</div>
+                  <div class="font-bold mt-0.5" style="color:#7cc4ff;">${f.blank}</div>
+                </div>
+                <div class="sub-box p-2 text-center">
+                  <div style="color:var(--faint);">Base HP</div>
+                  <div class="font-bold mt-0.5">${hpDisp.toLocaleString()}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pt-3 border-t flex flex-wrap items-center justify-between gap-1 text-[11px] font-mono" style="color:var(--faint);">
+              <span class="break-all">${f.level}</span>
+              <span>Scale ${f.scale}x</span>
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    document.getElementById("hard-toggle").addEventListener("click", (e) => {
+      isHard = !isHard;
+      e.target.textContent = isHard ? "Mode: Hard (2x Tokens)" : "Mode: Normal (1x Tokens)";
+      e.target.classList.toggle("primary", isHard);
+      renderAll();
+    });
+
+    document.getElementById("tz-toggle").addEventListener("click", (e) => {
+      useUTC = !useUTC;
+      e.target.textContent = useUTC ? "Time: UTC" : "Time: Local";
+      renderAll();
+    });
+
+    renderAll();
+    setInterval(() => {
+      const nowSec = Math.floor(Date.now() / 1000);
+      const curWeek = weekOf(nowSec);
+      const resetLeft = weekStart(curWeek + 1) - nowSec;
+      const nextDayLeft = (Math.floor(nowSec / DAY_SECONDS) + 1) * DAY_SECONDS - nowSec;
+      const curDay = dayOf(nowSec);
+      document.getElementById("week-reset").textContent = fmtDHM(resetLeft);
+      document.getElementById("week-reset-m").textContent = fmtDHM(resetLeft);
+      document.getElementById("stat-next-floor").textContent = curDay < 7 ? `Floor ${curDay + 1} in ${fmtDHM(nextDayLeft)}` : `Resets in ${fmtDHM(resetLeft)}`;
+    }, 1000);
+  </script>
+</body>
+</html>

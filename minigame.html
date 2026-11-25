@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Minigames — Anime Crusaders</title>
+  <meta name="theme-color" content="#0f0f0f" />
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap">
+      <div class="nav-left">
+        <a class="brand" href="./index.html">Anime Crusaders</a>
+        <nav class="nav-links" aria-label="Primary">
+          <a href="./index.html">Home</a>
+          <a href="./constellation.html">Constellations</a>
+          <a href="./minigame.html" aria-current="page">Minigames</a>
+          <a href="./shops.html">Shops</a>
+          <a href="./tower.html">Tower</a>
+          <a href="./tournament.html">Tournaments</a>
+          <a href="./reroll.html">Rerolls</a>
+        </nav>
+      </div>
+      <div class="nav-meta">
+        <span>UTC <strong id="utc-clock">--:--:--</strong></span>
+        <span style="color:#454545;">|</span>
+        <span>Reset <strong id="utc-reset">--h --m --s</strong></span>
+      </div>
+      <button type="button" class="nav-toggle" aria-expanded="false" aria-label="Toggle navigation" onclick="var n=this.closest('.nav');var o=n.classList.toggle('is-open');this.setAttribute('aria-expanded',o);this.textContent=o?'Close':'Menu';">Menu</button>
+    </div>
+  </header>
+
+  <main class="wrap py-7 sm:py-10 space-y-6 sm:space-y-8">
+    <section class="hero-dots pb-6 border-b">
+      <h1 class="text-2xl sm:text-4xl font-bold tracking-tight">Minigame Cooldowns</h1>
+      <p class="text-sm sm:text-base mt-2 max-w-2xl" style="color:var(--muted);">
+        Reward reset periods, puzzle rotations, daily 00:00 UTC limits, and special cooldowns for all 18 minigames.
+      </p>
+
+      <div class="card p-3 mt-4 flex items-center justify-between text-xs md:hidden">
+        <div>
+          <div style="color:var(--faint);">UTC Time</div>
+          <div id="utc-clock-m" class="font-mono font-semibold tabular-nums mt-0.5">--:--:--</div>
+        </div>
+        <div class="text-right">
+          <div style="color:var(--faint);">Daily Reset</div>
+          <div id="utc-reset-m" class="font-mono font-semibold tabular-nums mt-0.5">--h --m --s</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div class="card p-3.5 sm:p-4">
+        <div class="text-xs" style="color:var(--muted);">Total Minigames</div>
+        <div class="text-xl sm:text-2xl font-bold mt-1 tabular-nums">18</div>
+        <div class="text-xs mt-1" style="color:var(--faint);">Enabled in Data.Events</div>
+      </div>
+      <div class="card p-3.5 sm:p-4">
+        <div class="text-xs" style="color:var(--muted);">12h / 24h Periodic</div>
+        <div class="text-xl sm:text-2xl font-bold mt-1 tabular-nums">8</div>
+        <div class="text-xs mt-1" style="color:var(--faint);">4 on 12h &bull; 4 on 24h</div>
+      </div>
+      <div class="card p-3.5 sm:p-4">
+        <div class="text-xs" style="color:var(--muted);">Daily 00:00 UTC</div>
+        <div class="text-xl sm:text-2xl font-bold mt-1 tabular-nums">9</div>
+        <div class="text-xs mt-1" style="color:var(--faint);">1–2 tokens/day</div>
+      </div>
+      <div class="card p-3.5 sm:p-4">
+        <div class="text-xs" style="color:var(--muted);">Special Cooldowns</div>
+        <div class="text-xl sm:text-2xl font-bold mt-1 tabular-nums">2</div>
+        <div class="text-xs mt-1" style="color:var(--faint);">WordSearch 2h &bull; Hunt 10s</div>
+      </div>
+    </section>
+
+    <section class="card p-4 sm:p-5 space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h2 class="text-base font-semibold">24-Hour UTC Timeline</h2>
+        <div class="flex flex-wrap items-center gap-3 sm:gap-4 text-xs" style="color:var(--muted);">
+          <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-white"></span>Reset</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-sm border border-[#888]"></span>Rotation</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-0.5 h-3 bg-white"></span>Now</span>
+        </div>
+      </div>
+      <div id="timeline-container" class="space-y-2.5"></div>
+    </section>
+
+    <section class="space-y-4">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-2" id="filter-tabs">
+          <button data-filter="all" class="filter-btn button small primary">All (18)</button>
+          <button data-filter="periodic12" class="filter-btn button small">12h (4)</button>
+          <button data-filter="periodic24" class="filter-btn button small">24h (4)</button>
+          <button data-filter="daily" class="filter-btn button small">Daily UTC (9)</button>
+          <button data-filter="hunt" class="filter-btn button small">Hunt (1)</button>
+        </div>
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
+          <input id="search-input" type="text" placeholder="Search..." class="input w-full sm:w-48" />
+          <select id="sort-select" class="select w-full sm:w-auto" aria-label="Sort minigames">
+            <option value="order">Sort: Default</option>
+            <option value="next_reset">Sort: Next Reset</option>
+            <option value="shortest_cd">Sort: Shortest CD</option>
+            <option value="max_tokens">Sort: Max Tokens</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <span>Data from <code>ReplicatedStorage.Framework.Data.Events.*</code></span>
+      <span class="footer-links">
+        <a href="./index.html">Home</a>
+        <a href="./constellation.html">Constellations</a>
+        <a href="./minigame.html">Minigames</a>
+        <a href="./shops.html">Shops</a>
+        <a href="./tower.html">Tower</a>
+        <a href="./tournament.html">Tournaments</a>
+        <a href="./reroll.html">Rerolls</a>
+      </span>
+    </div>
+  </footer>
+
+  <script>
+    const MINIGAMES = [
+      {
+        id: "UnitHunt",
+        name: "Unit Hunt",
+        order: 3,
+        group: "hunt",
+        color: "rgb(245, 197, 66)",
+        rewardType: "Daily Cap + Scan Cooldown",
+        rewardPeriod: 86400,
+        rewardOffset: 0,
+        puzzlePeriod: null,
+        puzzleOffset: 0,
+        paidRuns: null,
+        dailyTokens: 120,
+        specialCooldown: 10,
+        specialLabel: "ScanCooldown: 10s",
+        payout: "Up to 120 Tokens/day",
+        maxTokensPerReset: 120,
+        note: "Explore Hunting Isles and catch wild units. Scanner ability has a 10s cooldown."
+      },
+      {
+        id: "GuessTheUnit",
+        name: "Guess The Unit!",
+        order: 40,
+        group: "periodic12",
+        color: "rgb(255, 160, 60)",
+        rewardType: "12h RewardPeriod",
+        rewardPeriod: 43200,
+        rewardOffset: 0,
+        puzzlePeriod: 10800,
+        puzzleOffset: 0,
+        paidRuns: 1,
+        dailyTokens: null,
+        specialCooldown: null,
+        specialLabel: "Round timer: 20s",
+        payout: "1 Event Token / 12h",
+        maxTokensPerReset: 1,
+        note: "Name 5 unit silhouettes within 20s. New puzzle rotation every 3h (10,800s); first win every 12h pays."
+      },
+      {
+        id: "Crusadle",
+        name: "Crusadle!",
+        order: 41,
+        group: "periodic12",
+        color: "rgb(120, 230, 120)",
+        rewardType: "12h RewardPeriod",
+        rewardPeriod: 43200,
+        rewardOffset: 0,
+        puzzlePeriod: 43200,
+        puzzleOffset: 0,
+        paidRuns: 1,
+        dailyTokens: null,
+        specialCooldown: null,
+        specialLabel: "8 guesses / puzzle",
+        payout: "1 Event Token / 12h",
+        maxTokensPerReset: 1,
+        note: "Wordle-style unit guessing in 8 tries. New puzzle and paid reward reset every 12h (43,200s)."
+      },
+      {
+        id: "WhoIsIt",
+        name: "Who is it?",
+        order: 42,
+        group: "periodic12",
+        color: "rgb(110, 140, 255)",
+        rewardType: "12h RewardPeriod (+4h Offset)",
+        rewardPeriod: 43200,
+        rewardOffset: 14400,
+        puzzlePeriod: 21600,
+        puzzleOffset: 14400,
+        paidRuns: 1,
+        dailyTokens: null,
+        specialCooldown: null,
+        specialLabel: "RewardOffset: +4h UTC",
+        payout: "1 Event Token / 12h",
+        maxTokensPerReset: 1,
+        note: "Pick the hidden unit out of 50 using clues. Resets at 04:00 & 16:00 UTC (+14,400s offset); new unit every 6h."
+      },
+      {
+        id: "WordSearch",
+        name: "Find The Word!",
+        order: 43,
+        group: "periodic24",
+        color: "rgb(80, 215, 195)",
+        rewardType: "24h RewardPeriod",
+        rewardPeriod: 86400,
+        rewardOffset: 0,
+        puzzlePeriod: 86400,
+        puzzleOffset: 0,
+        paidRuns: 1,
+        dailyTokens: null,
+        specialCooldown: 7200,
+        specialLabel: "Cooldown: 2h (7,200s)",
+        payout: "1–2 Event Tokens / 24h",
+        maxTokensPerReset: 2,
+        note: "Find 10–20 unit names. First finished puzzle every 24h pays (10 names = 1, 20 names = 2). Settings.Cooldown = 7,200s."
+      },
+      {
+        id: "MemoryCards",
+        name: "Flashback!",
+        order: 44,
+        group: "periodic24",
+        color: "rgb(255, 130, 140)",
+        rewardType: "24h RewardPeriod (2 Paid Runs)",
+        rewardPeriod: 86400,
+        rewardOffset: 0,
+        puzzlePeriod: 43200,
+        puzzleOffset: 0,
+        paidRuns: 2,
+        dailyTokens: null,
+        specialCooldown: null,
+        specialLabel: "3 rounds (9/12/15 cards)",
+        payout: "1 Token / run (2/day)",
+        maxTokensPerReset: 2,
+        note: "Clear all 3 memory card rounds for 1 Token (RewardMax = 2 per 24h). Period rotates every 12h."
+      },
+      {
+        id: "Sudoku",
+        name: "Sudoku!",
+        order: 45,
+        group: "periodic12",
+        color: "rgb(205, 230, 95)",
+        rewardType: "12h RewardPeriod",
+        rewardPeriod: 43200,
+        rewardOffset: 0,
+        puzzlePeriod: 43200,
+        puzzleOffset: 0,
+        paidRuns: 1,
+        dailyTokens: null,
+        specialCooldown: null,
+        specialLabel: "Easy / Hard (3 mistakes)",
+        payout: "1 Event Token / 12h",
+        maxTokensPerReset: 1,
+        note: "6x6 Sudoku (Easy or Hard). First solve every 12h pays 1 Event Token."
+      },
+      {
+        id: "ReelRush",
+        name: "Reel Rush!",
+        order: 45,
+        group: "periodic24",
+        color: "rgb(70, 205, 235)",
+        rewardType: "24h RewardPeriod (2 Paid Runs)",
+        rewardPeriod: 86400,
+        rewardOffset: 0,
+        puzzlePeriod: 86400,
+        puzzleOffset: 0,
+        paidRuns: 2,
+        dailyTokens: null,
+        specialCooldown: null,
+        specialLabel: "Plays = 2 / day",
+        payout: "1 Token + 10k Gold / run",
+        maxTokensPerReset: 2,
+        note: "Pond holds 1 Event Token & 10,000 Gold per paid run. 2 paid runs every 24h, unlimited practice runs."
+      },
+      {
+        id: "SnapShot",
+        name: "Bullseye!",
+        order: 47,
+        group: "periodic24",
+        color: "rgb(255, 92, 92)",
+        rewardType: "24h RewardPeriod (Shared)",
+        rewardPeriod: 86400,
+        rewardOffset: 0,
+        puzzlePeriod: 43200,
+        puzzleOffset: 0,
+        paidRuns: 1,
+        dailyTokens: null,
+        specialCooldown: null,
+        specialLabel: "30s run • C rank+ pays",
+        payout: "Easy 1 / Med 1 / Hard 2",
+        maxTokensPerReset: 2,
+        note: "Aim trainer (30s). One shared run pays every 24h based on difficulty (Hard pays 2). Period = 12h."
+      },
+      {
+        id: "Chess",
+        name: "Chess!",
+        order: 50,
+        group: "daily",
+        color: "rgb(125, 205, 110)",
+        rewardType: "Daily 00:00 UTC",
+        rewardPeriod: 86400,
+        rewardOffset: 0,
+        puzzlePeriod: null,
+        puzzleOffset: 0,
+        paidRuns: null,
+        dailyTokens: 1,
+        specialCooldown: null,
+        specialLabel: "MinPlies: 20",
+        payout: "1 Token/day + 1,000+ Gold",
+        maxTokensPerReset: 1,
+        note: "Play PvP or bots (Krillo to Zero). First win each UTC day pays 1 Event Token; wins also pay Gold."
+      },
+      {
+        id: "Battleship",
+        name: "Battleship!",
+        order: 52,
+        group: "daily",
+        color: "rgb(80, 170, 255)",
+        rewardType: "Daily 00:00 UTC",
+        rewardPeriod: 86400,
+        rewardOffset: 0,
+        puzzlePeriod: null,
+        puzzleOffset: 0,
+        paidRuns: null,
+        dailyTokens: 1,
+        specialCooldown: null,
+        specialLabel: "PvP or Bot",
+        payout: "1 Event Token / day",
+        maxTokensPerReset: 1,
+        note: "Sink all 5 opponent ships. First win each day (00:00 UTC reset) pays 1 Event Token."
+      },
+      {
+        id: "MindRead",
+        name: "Mind Read!",
+        order: 53,
+        group: "daily",
+        color: "rgb(235, 110, 200)",
+        rewardType: "Daily 00:00 UTC",
+        rewardPeriod: 86400,
+        rewardOffset: 0,
+        puzzlePeriod: null,
+        puzzleOffset: 0,
+        paidRuns: null,
+        dailyTokens: 1,
+        specialCooldown: null,
+        specialLabel: "25-unit board",
+        payout: "1 Event Token / day",
+        maxTokensPerReset: 1,
+        note: "Guess Who-style deduction vs players or bot. First win each UTC day pays 1 Event Token."
+      },
+      {
+        id: "RhythmClash",
+        name: "Beat Clash!",
+        order: 58,
+        group: "daily",
+        color: "rgb(255, 72, 160)",
+        rewardType: "Daily 00:00 UTC",
+        rewardPeriod: 86400,
+        rewardOffset: 0,
+        puzzlePeriod: null,
+        puzzleOffset: 0,
+        paidRuns: null,
+        dailyTokens: 1,
+        specialCooldown: null,
+        specialLabel: "Up to 3 players or bot",
+        payout: "1 Event Token / day",
+        maxTokensPerReset: 1,
+        note: "4-key rhythm duel. First song won each day (00:00 UTC reset) pays 1 Event Token."
+      },
+      {
+        id: "RhythmChampion",
+        name: "Rhythm Champion",
+        order: 59,
+        group: "daily",
+        color: "rgb(255, 96, 178)",
+        rewardType: "Daily 00:00 UTC",
+        rewardPeriod: 86400,
+        rewardOffset: 0,
+        puzzlePeriod: null,
+        puzzleOffset: 0,
+        paidRuns: null,
+        dailyTokens: 2,
+        specialCooldown: null,
+        specialLabel: "1 Token / song clear",
+        payout: "Up to 2 Tokens / day",
+        maxTokensPerReset: 2,
+        note: "Osu-style beatmaps. Every song cleared pays 1 Event Token, up to DailyTokens = 2 per UTC day."
+      },
+      {
+        id: "TicTacToe",
+        name: "Tic Tac Toe!",
+        order: 61,
+        group: "daily",
+        color: "rgb(70, 225, 165)",
+        rewardType: "Daily 00:00 UTC",
+        rewardPeriod: 86400,
+        rewardOffset: 0,
+        puzzlePeriod: null,
+        puzzleOffset: 0,
+        paidRuns: null,
+        dailyTokens: 1,
+        specialCooldown: null,
+        specialLabel: "Best of 3",
+        payout: "1 Event Token / day",
+        maxTokensPerReset: 1,
+        note: "Best of 3 against a player or bot. First match won each UTC day pays 1 Event Token."
+      },
+      {
+        id: "Pool",
+        name: "Pool!",
+        order: 63,
+        group: "daily",
+        color: "rgb(25, 180, 95)",
+        rewardType: "Daily 00:00 UTC",
+        rewardPeriod: 86400,
+        rewardOffset: 0,
+        puzzlePeriod: null,
+        puzzleOffset: 0,
+        paidRuns: null,
+        dailyTokens: 1,
+        specialCooldown: null,
+        specialLabel: "8-Ball PvP / Bot",
+        payout: "1 Event Token / day",
+        maxTokensPerReset: 1,
+        note: "8-ball billiards. First win each day (00:00 UTC reset) pays 1 Event Token."
+      },
+      {
+        id: "WormArena",
+        name: "Worm Rush!",
+        order: 66,
+        group: "daily",
+        color: "rgb(150, 245, 80)",
+        rewardType: "Daily 00:00 UTC",
+        rewardPeriod: 86400,
+        rewardOffset: 0,
+        puzzlePeriod: null,
+        puzzleOffset: 0,
+        paidRuns: null,
+        dailyTokens: 1,
+        specialCooldown: null,
+        specialLabel: "Server-wide arena",
+        payout: "1 Event Token / day",
+        maxTokensPerReset: 1,
+        note: "First enemy worm you cut off each UTC day pays 1 Event Token."
+      },
+      {
+        id: "Uno",
+        name: "Ichi!",
+        order: 67,
+        group: "daily",
+        color: "rgb(230, 40, 62)",
+        rewardType: "Daily 00:00 UTC",
+        rewardPeriod: 86400,
+        rewardOffset: 0,
+        puzzlePeriod: null,
+        puzzleOffset: 0,
+        paidRuns: null,
+        dailyTokens: 1,
+        specialCooldown: null,
+        specialLabel: "Up to 4 players / bots",
+        payout: "1 Event Token / day",
+        maxTokensPerReset: 1,
+        note: "Uno-style card game with house rules. First win each UTC day pays 1 Event Token."
+      }
+    ];
+
+    let activeFilter = "all";
+    let searchQuery = "";
+    let sortMode = "order";
+
+    function fmtDuration(sec) {
+      sec = Math.max(0, Math.floor(sec));
+      const d = Math.floor(sec / 86400);
+      const h = Math.floor((sec % 86400) / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = sec % 60;
+      if (d > 0) return `${d}d ${h}h`;
+      if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`;
+      return `${m}m ${String(s).padStart(2, "0")}s`;
+    }
+
+    function fmtShortPeriod(sec) {
+      if (!sec) return "—";
+      if (sec >= 3600) {
+        const h = sec / 3600;
+        return Number.isInteger(h) ? `${h}h` : `${h.toFixed(1)}h`;
+      }
+      if (sec >= 60) return `${Math.round(sec / 60)}m`;
+      return `${sec}s`;
+    }
+
+    function nextBoundary(period, offset, nowSec) {
+      const k = Math.floor((nowSec - offset) / period);
+      return (k + 1) * period + offset;
+    }
+
+    function getRemainingRewardSec(g, nowSec) {
+      return nextBoundary(g.rewardPeriod, g.rewardOffset || 0, nowSec) - nowSec;
+    }
+
+    function renderTimeline(nowSec) {
+      const container = document.getElementById("timeline-container");
+      const utcDayStart = Math.floor(nowSec / 86400) * 86400;
+      const nowPct = ((nowSec - utcDayStart) / 86400) * 100;
+
+      const tracks = [
+        { label: "00:00 UTC Daily (9 Games + Hunt)", period: 86400, offset: 0, kind: "reward" },
+        { label: "12h Reward (GTU, Crusadle, Sudoku)", period: 43200, offset: 0, kind: "reward" },
+        { label: "12h +4h Offset (Who is it?)", period: 43200, offset: 14400, kind: "reward" },
+        { label: "6h Puzzle Rotation (Who is it?)", period: 21600, offset: 14400, kind: "puzzle" },
+        { label: "3h Puzzle Rotation (Guess The Unit!)", period: 10800, offset: 0, kind: "puzzle" }
+      ];
+
+      let html = `
+        <div class="relative flex justify-between text-xs font-mono pb-1 pl-0 md:pl-72" style="color:var(--faint);">
+          <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00 UTC</span>
+        </div>
+      `;
+
+      for (const t of tracks) {
+        let ticks = "";
+        for (let ts = utcDayStart - t.period; ts <= utcDayStart + 86400 + t.period; ts += t.period) {
+          const boundary = Math.floor((ts - t.offset) / t.period) * t.period + t.offset;
+          const pct = ((boundary - utcDayStart) / 86400) * 100;
+          if (pct >= 0 && pct <= 100) {
+            if (t.kind === "reward") {
+              ticks += `<span class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-white" style="left:${pct}%" title="Reset @ ${new Date(boundary * 1000).toISOString().slice(11,16)} UTC"></span>`;
+            } else {
+              ticks += `<span class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2 h-2 rounded-sm border border-[#888] bg-[#141414]" style="left:${pct}%" title="Rotation @ ${new Date(boundary * 1000).toISOString().slice(11,16)} UTC"></span>`;
+            }
+          }
+        }
+        html += `
+          <div class="flex flex-col md:flex-row md:items-center gap-1.5 md:gap-3">
+            <div class="md:w-72 shrink-0 text-xs truncate" style="color:var(--muted);">${t.label}</div>
+            <div class="track">
+              <div class="absolute inset-y-0 left-1/4 w-px bg-[#262626]"></div>
+              <div class="absolute inset-y-0 left-1/2 w-px bg-[#262626]"></div>
+              <div class="absolute inset-y-0 left-3/4 w-px bg-[#262626]"></div>
+              ${ticks}
+              <div class="absolute inset-y-0 w-0.5 bg-white z-10" style="left:${nowPct}%" title="Current UTC Time"></div>
+            </div>
+          </div>
+        `;
+      }
+      container.innerHTML = html;
+    }
+
+    function getFilteredAndSorted(nowSec) {
+      let list = MINIGAMES.filter((g) => {
+        if (activeFilter !== "all" && g.group !== activeFilter) return false;
+        if (searchQuery) {
+          const q = searchQuery.toLowerCase();
+          return g.name.toLowerCase().includes(q) || g.id.toLowerCase().includes(q) || g.note.toLowerCase().includes(q);
+        }
+        return true;
+      });
+
+      list.sort((a, b) => {
+        if (sortMode === "next_reset") {
+          return getRemainingRewardSec(a, nowSec) - getRemainingRewardSec(b, nowSec) || a.order - b.order;
+        }
+        if (sortMode === "shortest_cd") {
+          return a.rewardPeriod - b.rewardPeriod || a.order - b.order;
+        }
+        if (sortMode === "max_tokens") {
+          return b.maxTokensPerReset - a.maxTokensPerReset || a.order - b.order;
+        }
+        return a.order - b.order || a.name.localeCompare(b.name);
+      });
+      return list;
+    }
+
+    function renderCards(nowSec) {
+      const grid = document.getElementById("cards-grid");
+      const items = getFilteredAndSorted(nowSec);
+
+      if (items.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full card p-8 text-center text-sm" style="color:var(--muted);">
+            No minigames match your current filter or search query.
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = items.map((g) => {
+        const remReward = getRemainingRewardSec(g, nowSec);
+        const pctElapsed = Math.min(100, Math.max(0, ((g.rewardPeriod - remReward) / g.rewardPeriod) * 100));
+        const remPuzzle = g.puzzlePeriod ? (nextBoundary(g.puzzlePeriod, g.puzzleOffset || 0, nowSec) - nowSec) : null;
+
+        const groupBadge =
+          g.group === "periodic12" ? "12h" :
+          g.group === "periodic24" ? "24h" :
+          g.group === "daily" ? "Daily UTC" : "Hunt";
+
+        return `
+          <article class="card card-hover p-5 flex flex-col gap-3">
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full shrink-0" style="background:${g.color}"></span>
+                  <h3 class="text-base font-semibold truncate">${g.name}</h3>
+                </div>
+                <div class="text-xs font-mono mt-0.5" style="color:var(--faint);">${g.id} &bull; #${g.order}</div>
+              </div>
+              <span class="tag">${groupBadge}</span>
+            </div>
+
+            <p class="text-xs leading-relaxed" style="color:var(--muted);">${g.note}</p>
+
+            <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs pt-2 border-t">
+              <div>
+                <dt style="color:var(--faint);">Cooldown</dt>
+                <dd class="font-medium mt-0.5">${fmtShortPeriod(g.rewardPeriod)}${g.rewardOffset ? ` (+${fmtShortPeriod(g.rewardOffset)})` : ""}</dd>
+              </div>
+              <div>
+                <dt style="color:var(--faint);">Payout</dt>
+                <dd class="font-medium mt-0.5">${g.payout}</dd>
+              </div>
+              <div>
+                <dt style="color:var(--faint);">Rotation</dt>
+                <dd class="font-medium mt-0.5">${g.puzzlePeriod ? `${fmtShortPeriod(g.puzzlePeriod)} (<span data-puzzle-cd="${g.id}" class="font-mono tabular-nums">${fmtDuration(remPuzzle)}</span>)` : "Per match"}</dd>
+              </div>
+              <div>
+                <dt style="color:var(--faint);">Limit</dt>
+                <dd class="font-medium mt-0.5">${g.specialLabel}</dd>
+              </div>
+            </dl>
+
+            <div class="mt-auto pt-2 space-y-1.5">
+              <div class="flex items-center justify-between text-xs">
+                <span style="color:var(--faint);">Next reset</span>
+                <span class="font-mono font-semibold tabular-nums" data-countdown="${g.id}">${fmtDuration(remReward)}</span>
+              </div>
+              <div class="progress-track">
+                <div class="h-full bg-white transition-all duration-500" data-progress="${g.id}" style="width:${pctElapsed.toFixed(1)}%;"></div>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function updateTick() {
+      const nowMs = Date.now();
+      const nowSec = Math.floor(nowMs / 1000);
+      const utcStr = new Date(nowMs).toISOString().slice(11, 19);
+      const utcNextMidnight = (Math.floor(nowSec / 86400) + 1) * 86400;
+      const resetStr = fmtDuration(utcNextMidnight - nowSec);
+
+      document.getElementById("utc-clock").textContent = utcStr;
+      document.getElementById("utc-reset").textContent = resetStr;
+      document.getElementById("utc-clock-m").textContent = utcStr + " UTC";
+      document.getElementById("utc-reset-m").textContent = resetStr;
+
+      renderTimeline(nowSec);
+
+      if (sortMode === "next_reset") {
+        renderCards(nowSec);
+        return;
+      }
+
+      for (const g of MINIGAMES) {
+        const remReward = getRemainingRewardSec(g, nowSec);
+        const pctElapsed = Math.min(100, Math.max(0, ((g.rewardPeriod - remReward) / g.rewardPeriod) * 100));
+        const cdEl = document.querySelector(`[data-countdown="${g.id}"]`);
+        const progEl = document.querySelector(`[data-progress="${g.id}"]`);
+        if (cdEl) cdEl.textContent = fmtDuration(remReward);
+        if (progEl) progEl.style.width = `${pctElapsed.toFixed(1)}%`;
+        if (g.puzzlePeriod) {
+          const pEl = document.querySelector(`[data-puzzle-cd="${g.id}"]`);
+          if (pEl) pEl.textContent = fmtDuration(nextBoundary(g.puzzlePeriod, g.puzzleOffset || 0, nowSec) - nowSec);
+        }
+      }
+    }
+
+    function refreshAll() {
+      const nowSec = Math.floor(Date.now() / 1000);
+      renderCards(nowSec);
+      updateTick();
+    }
+
+    function syncFilterStyles() {
+      document.querySelectorAll(".filter-btn").forEach((btn) => {
+        const active = btn.dataset.filter === activeFilter;
+        btn.className = active ? "filter-btn button small primary" : "filter-btn button small";
+      });
+    }
+
+    document.querySelectorAll(".filter-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        activeFilter = btn.dataset.filter;
+        syncFilterStyles();
+        refreshAll();
+      });
+    });
+
+    document.getElementById("search-input").addEventListener("input", (e) => {
+      searchQuery = e.target.value.trim();
+      refreshAll();
+    });
+
+    document.getElementById("sort-select").addEventListener("change", (e) => {
+      sortMode = e.target.value;
+      refreshAll();
+    });
+
+    syncFilterStyles();
+    refreshAll();
+    setInterval(updateTick, 1000);
+  </script>
+</body>
+</html>

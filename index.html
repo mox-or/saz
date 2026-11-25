@@ -1,1 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Anime Crusaders — Event &amp; Timer Hub</title>
+  <meta name="theme-color" content="#0f0f0f" />
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap">
+      <div class="nav-left">
+        <a class="brand" href="./index.html">Anime Crusaders</a>
+        <nav class="nav-links" aria-label="Primary">
+          <a href="./index.html" aria-current="page">Home</a>
+          <a href="./constellation.html">Constellations</a>
+          <a href="./minigame.html">Minigames</a>
+          <a href="./shops.html">Shops</a>
+          <a href="./tower.html">Tower</a>
+          <a href="./tournament.html">Tournaments</a>
+          <a href="./reroll.html">Rerolls</a>
+        </nav>
+      </div>
+      <div class="nav-meta">
+        <span>UTC <strong id="nav-utc">--:--:-- UTC</strong></span>
+      </div>
+      <button type="button" class="nav-toggle" aria-expanded="false" aria-label="Toggle navigation" onclick="var n=this.closest('.nav');var o=n.classList.toggle('is-open');this.setAttribute('aria-expanded',o);this.textContent=o?'Close':'Menu';">Menu</button>
+    </div>
+  </header>
 
+  <main class="wrap py-8 sm:py-12 space-y-8 sm:space-y-10">
+    <section class="hero-dots text-center py-6 sm:py-12">
+      <h1 class="text-3xl sm:text-6xl font-bold tracking-tight">Anime Crusaders</h1>
+      <p class="text-sm sm:text-lg mt-3 mx-auto max-w-xl" style="color:var(--muted);">
+        Track Tournament of Power hourly Constellations 7 days ahead and monitor all 18 minigame cooldowns in one place.
+      </p>
+      <div class="flex flex-col sm:flex-row justify-center gap-3 mt-6 sm:mt-7">
+        <a href="./constellation.html" class="button primary w-full sm:w-auto">Constellations</a>
+        <a href="./minigame.html" class="button w-full sm:w-auto">Minigames</a>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <article class="card p-5 sm:p-6 flex flex-col justify-between gap-5 sm:gap-6">
+        <div class="space-y-4">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 text-xs font-mono" style="color:var(--faint);">
+                <span id="home-const-dot" class="w-2 h-2 rounded-full shrink-0 inline-block" style="background:var(--muted);"></span>
+                <span>ACTIVE CONSTELLATION</span>
+              </div>
+              <h2 id="home-const-name" class="text-xl sm:text-2xl font-bold mt-1">Loading...</h2>
+              <p id="home-const-effect" class="text-sm mt-1" style="color:var(--muted);">Calculating current hour...</p>
+            </div>
+            <div class="text-right shrink-0">
+              <div class="text-xs" style="color:var(--faint);">Rotates in</div>
+              <div id="home-const-cd" class="font-mono text-base sm:text-lg font-bold tabular-nums mt-0.5">--:--</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div class="sub-box p-3">
+              <div style="color:var(--faint);">Next Hour</div>
+              <div id="home-const-next" class="font-semibold mt-1 text-sm">---</div>
+            </div>
+            <div class="sub-box p-3">
+              <div style="color:var(--faint);">Next Supernova (500%)</div>
+              <div id="home-const-sn" class="font-semibold mt-1 text-sm">---</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t">
+          <span class="text-xs" style="color:var(--faint);">168-hour forecast</span>
+          <a href="./constellation.html" class="button small primary">Open Forecast</a>
+        </div>
+      </article>
+
+      <article class="card p-5 sm:p-6 flex flex-col justify-between gap-5 sm:gap-6">
+        <div class="space-y-4">
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-start gap-3 min-w-0">
+              <span class="ac-badge ac-badge-lg shrink-0" style="border-color:rgba(124,196,255,0.45);"><svg viewBox="0 0 24 24" width="24" height="24" class="ac-icon" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="#7cc4ff" stroke-width="1.8"/><path d="M12 7v5l3.5 2" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <div class="min-w-0">
+                <div class="text-xs font-mono" style="color:var(--faint);">MINIGAME WINDOWS</div>
+                <h2 class="text-xl sm:text-2xl font-bold mt-1">18 Active Minigames</h2>
+                <p class="text-sm mt-1" style="color:var(--muted);">8 periodic reward timers, 9 daily UTC games, and Unit Hunt.</p>
+              </div>
+            </div>
+            <div class="text-right shrink-0">
+              <div class="text-xs" style="color:var(--faint);">00:00 UTC Reset</div>
+              <div id="home-utc-reset" class="font-mono text-base sm:text-lg font-bold tabular-nums mt-0.5">--h --m --s</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+            <div class="sub-box p-3 flex sm:block items-center justify-between gap-2">
+              <div>
+                <div style="color:var(--faint);">12h Cycle</div>
+                <div class="mt-0.5 truncate sm:hidden" style="color:var(--faint);">Crusadle, Sudoku</div>
+              </div>
+              <div id="home-12h-cd" class="font-mono font-semibold sm:mt-1 text-sm tabular-nums">--:--:--</div>
+              <div class="mt-0.5 truncate hidden sm:block" style="color:var(--faint);">Crusadle, Sudoku</div>
+            </div>
+            <div class="sub-box p-3 flex sm:block items-center justify-between gap-2">
+              <div>
+                <div style="color:var(--faint);">+4h Offset</div>
+                <div class="mt-0.5 truncate sm:hidden" style="color:var(--faint);">Who is it?</div>
+              </div>
+              <div id="home-4h-cd" class="font-mono font-semibold sm:mt-1 text-sm tabular-nums">--:--:--</div>
+              <div class="mt-0.5 truncate hidden sm:block" style="color:var(--faint);">Who is it?</div>
+            </div>
+            <div class="sub-box p-3 flex sm:block items-center justify-between gap-2">
+              <div>
+                <div style="color:var(--faint);">3h Puzzle</div>
+                <div class="mt-0.5 truncate sm:hidden" style="color:var(--faint);">Guess The Unit!</div>
+              </div>
+              <div id="home-3h-cd" class="font-mono font-semibold sm:mt-1 text-sm tabular-nums">--:--:--</div>
+              <div class="mt-0.5 truncate hidden sm:block" style="color:var(--faint);">Guess The Unit!</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t">
+          <span class="text-xs" style="color:var(--faint);">Timeline &amp; cooldowns</span>
+          <a href="./minigame.html" class="button small">Open Minigames</a>
+        </div>
+      </article>
+    </section>
+
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div class="card p-4">
+        <div class="text-xs" style="color:var(--muted);">Constellation Pool</div>
+        <div class="text-2xl font-bold mt-1">8 Types</div>
+        <div class="text-xs mt-1" style="color:var(--faint);">5% Supernova &bull; 10% Crown</div>
+      </div>
+      <div class="card p-4">
+        <div class="text-xs" style="color:var(--muted);">Forecast Horizon</div>
+        <div class="text-2xl font-bold mt-1">7 Days</div>
+        <div class="text-xs mt-1" style="color:var(--faint);">168 consecutive hours</div>
+      </div>
+      <div class="card p-4">
+        <div class="text-xs" style="color:var(--muted);">Periodic Minigames</div>
+        <div class="text-2xl font-bold mt-1">8 Games</div>
+        <div class="text-xs mt-1" style="color:var(--faint);">12h / 24h RewardPeriod</div>
+      </div>
+      <div class="card p-4">
+        <div class="text-xs" style="color:var(--muted);">Daily UTC Games</div>
+        <div class="text-2xl font-bold mt-1">9 + Hunt</div>
+        <div class="text-xs mt-1" style="color:var(--faint);">Unit Hunt cap: 120/day</div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <span>Anime Crusaders Tools &bull; <code>ReplicatedStorage.Framework.Data</code></span>
+      <span class="footer-links">
+        <a href="./index.html">Home</a>
+        <a href="./constellation.html">Constellations</a>
+        <a href="./minigame.html">Minigames</a>
+        <a href="./shops.html">Shops</a>
+        <a href="./tower.html">Tower</a>
+        <a href="./tournament.html">Tournaments</a>
+        <a href="./reroll.html">Rerolls</a>
+      </span>
+    </div>
+  </footer>
+
+  <script>
+    const EPOCH_HOUR = 498648;
+    const CONSTELLATIONS = [
+      { id: "anvil", name: "The Anvil", chance: 20, color: "rgb(150, 196, 255)", effectText: "2 Stat Cubes on clear" },
+      { id: "diamond", name: "The Diamond", chance: 20, color: "rgb(120, 236, 255)", effectText: "2 Perfect Stat Cubes on clear" },
+      { id: "orb", name: "The Orb", chance: 15, color: "rgb(110, 255, 170)", effectText: "2 Relic Cubes on clear" },
+      { id: "storm", name: "The Storm", chance: 10, color: "rgb(196, 130, 255)", effectText: "2 Curse Tokens on clear" },
+      { id: "comet", name: "The Comet", chance: 10, color: "rgb(255, 150, 214)", effectText: "4 Trait Remnants on clear" },
+      { id: "crown", name: "The Crown", chance: 10, color: "rgb(255, 210, 90)", effectText: "200% Anniversary Stars (x2 all run)" },
+      { id: "meteor", name: "The Meteor", chance: 10, color: "rgb(255, 128, 84)", effectText: "50% chance of a Limit Breaker on clear" },
+      { id: "supernova", name: "Supernova", chance: 5, color: "rgb(255, 240, 196)", effectText: "500% Anniversary Stars (x5 all run) • Global Announce" }
+    ];
+    const BY_ID = Object.fromEntries(CONSTELLATIONS.map((c) => [c.id, c]));
+
+    class RobloxRandom {
+      constructor(seed) {
+        this.MULT = 6364136223846793005n;
+        this.INC = 105n;
+        this.MASK64 = (1n << 64n) - 1n;
+        this.MASK32 = 0xFFFFFFFFn;
+        this.state = 0n;
+        this.nextUint32();
+        this.state = (this.state + BigInt.asUintN(64, BigInt(seed))) & this.MASK64;
+        this.nextUint32();
+      }
+      nextUint32() {
+        const oldstate = this.state;
+        this.state = (oldstate * this.MULT + (this.INC | 1n)) & this.MASK64;
+        const xorshifted = Number((((oldstate >> 18n) ^ oldstate) >> 27n) & this.MASK32);
+        const rot = Number((oldstate >> 59n) & 31n);
+        return ((xorshifted >>> rot) | ((xorshifted << ((-rot) & 31)) >>> 0)) >>> 0;
+      }
+      nextNumber() {
+        const rl = BigInt(this.nextUint32());
+        const rh = BigInt(this.nextUint32());
+        return Number(rl | (rh << 32n)) / 18446744073709551616;
+      }
+    }
+
+    function drawConstellation(hour, bannedId) {
+      const seed = (hour * 7919 + 104729) % 2147483647;
+      const rng = new RobloxRandom(seed);
+      let total = 0;
+      for (const c of CONSTELLATIONS) if (c.id !== bannedId) total += c.chance;
+      let roll = rng.nextNumber() * total;
+      let fallback = null;
+      for (const c of CONSTELLATIONS) {
+        if (c.id !== bannedId) {
+          fallback = c.id;
+          roll -= c.chance;
+          if (roll < 0) return c.id;
+        }
+      }
+      return fallback;
+    }
+
+    const hourCache = new Map();
+    let maxCachedHour = EPOCH_HOUR - 1;
+    function constellationAt(hour) {
+      const h = Math.floor(hour);
+      if (h < EPOCH_HOUR) return BY_ID[drawConstellation(h, null)];
+      while (maxCachedHour < h) {
+        const nextH = maxCachedHour + 1;
+        const prev1 = hourCache.get(nextH - 1) || null;
+        const prev2 = hourCache.get(nextH - 2) || null;
+        const banned = (prev1 !== null && prev1 === prev2) ? prev1 : null;
+        hourCache.set(nextH, drawConstellation(nextH, banned));
+        maxCachedHour = nextH;
+      }
+      return BY_ID[hourCache.get(h)];
+    }
+
+    function fmtHMS(sec) {
+      sec = Math.max(0, Math.floor(sec));
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = sec % 60;
+      return `${String(h).padStart(2, "0")}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`;
+    }
+
+    function fmtMS(sec) {
+      sec = Math.max(0, Math.floor(sec));
+      return `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
+    }
+
+    function nextBoundary(period, offset, nowSec) {
+      return (Math.floor((nowSec - offset) / period) + 1) * period + offset;
+    }
+
+    let lastHour = null;
+    function tick() {
+      const nowMs = Date.now();
+      const nowSec = Math.floor(nowMs / 1000);
+      const nowHour = Math.floor(nowSec / 3600);
+
+      document.getElementById("nav-utc").textContent = new Date(nowMs).toISOString().slice(11, 19) + " UTC";
+      document.getElementById("home-const-cd").textContent = fmtMS((nowHour + 1) * 3600 - nowSec);
+      document.getElementById("home-utc-reset").textContent = fmtHMS(nextBoundary(86400, 0, nowSec) - nowSec);
+      document.getElementById("home-12h-cd").textContent = fmtHMS(nextBoundary(43200, 0, nowSec) - nowSec);
+      document.getElementById("home-4h-cd").textContent = fmtHMS(nextBoundary(43200, 14400, nowSec) - nowSec);
+      document.getElementById("home-3h-cd").textContent = fmtHMS(nextBoundary(10800, 0, nowSec) - nowSec);
+
+      if (lastHour !== nowHour) {
+        lastHour = nowHour;
+        const cur = constellationAt(nowHour);
+        const nxt = constellationAt(nowHour + 1);
+        const nameEl = document.getElementById("home-const-name");
+        nameEl.textContent = cur.name;
+        nameEl.style.color = cur.color;
+        const dotEl = document.getElementById("home-const-dot");
+        if (dotEl) dotEl.style.background = cur.color;
+        document.getElementById("home-const-effect").textContent = cur.effectText;
+
+        const nxtEl = document.getElementById("home-const-next");
+        nxtEl.innerHTML = `<span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full shrink-0 inline-block" style="background:${nxt.color}"></span><span>${nxt.name}</span></span>`;
+        nxtEl.style.color = nxt.color;
+
+        let snHour = null;
+        for (let i = 1; i <= 168; i++) {
+          if (constellationAt(nowHour + i).id === "supernova") {
+            snHour = nowHour + i;
+            break;
+          }
+        }
+        const snEl = document.getElementById("home-const-sn");
+        if (snHour !== null) {
+          const delta = snHour - nowHour;
+          const d = new Date(snHour * 3600 * 1000);
+          const timeStr = `${String(d.getHours()).padStart(2, "0")}:00`;
+          const snLabel = delta < 24 ? `${timeStr} (in ${delta}h)` : `in ${Math.floor(delta / 24)}d ${delta % 24}h`;
+          snEl.innerHTML = `<span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full shrink-0 inline-block" style="background:${BY_ID.supernova.color}"></span><span>${snLabel}</span></span>`;
+          snEl.style.color = BY_ID.supernova.color;
+        } else {
+          snEl.textContent = "None in 7d";
+        }
+      }
+    }
+
+    tick();
+    setInterval(tick, 1000);
+  </script>
+</body>
+</html>
